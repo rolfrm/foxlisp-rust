@@ -23,6 +23,11 @@ impl From<i64> for LispValue {
         LispValue::Integer(item)
     }
 }
+impl From<num::BigInt> for LispValue {
+    fn from(item: num::BigInt) -> Self {
+        LispValue::BigInt(item)
+    }
+}
 impl From<String> for LispValue {
     fn from(item: String) -> Self {
         LispValue::String(item)
@@ -98,11 +103,13 @@ impl fmt::Display for LispValue {
 struct LispContext{
     symbols: HashMap<String, i64>,
     id_gen: i64,
+    globals: Vec<LispValue>,
+    global_names: HashMap<i64, i64>
 }
 
 impl<'a> LispContext{
     fn new() -> LispContext{
-        return LispContext{symbols: HashMap::new(), id_gen: 1};
+        return LispContext{symbols: HashMap::new(), id_gen: 1, globals: Vec::new(), global_names: HashMap::new()};
     }
 
     fn get_symbol(& mut self, name: &str) -> LispValue{
@@ -309,6 +316,8 @@ fn main() {
     let mut out : LispValue = LispValue::Nil;
     parse(&mut ctx, code.as_bytes(), &mut out);
     println!("Parsed: {}", out);
+
+    println!("BigInt: {}", LispValue::from(num::BigInt::from(10000)));
 
     assert!(eq(&LispValue::Integer(222), car(cdr(&out))));
     assert!(eq(&ctx.get_symbol("asd"), cadddr(&out)));
