@@ -1,7 +1,7 @@
 
 use std::fmt;
 use std::collections::HashMap;
-
+use num;
 #[derive(PartialEq)]
 enum LispValue{
     Cons(Box<(LispValue, LispValue)>),
@@ -9,7 +9,9 @@ enum LispValue{
     String(String),
     Rational(f64),
     Integer(i64),
-    Symbol(i64)
+    Symbol(i64),
+    BigInt(num::BigInt),
+    BigRational(num::BigRational)
 }
 
 impl LispValue {
@@ -80,11 +82,13 @@ impl fmt::Display for LispValue {
             LispValue::String(str) => {
                 return write!(f, "{}", str);
             }
-            LispValue::Symbol(id) => {
+            &LispValue::Symbol(id) => {
                 return write!(f, "Symbol({})", id)
             }
             &LispValue::Rational(x) => {write!(f, "{0}", x)}
             LispValue::Integer(x) => {write!(f, "{0}", x)}
+            LispValue::BigInt(x) => {write!(f, "{0}", x)}
+            LispValue::BigRational(x) => {write!(f, "{0}", x)}
 
         }
     
