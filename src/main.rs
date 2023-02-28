@@ -130,12 +130,45 @@ fn parse_integer<'a>(code0: &'a [u8], val: &mut i64) -> Option<&'a [u8]>{
     }
     return Option::Some(code);
 }
+
 fn skip_whitespace(code: &[u8]) -> &[u8]{
     let mut code2 = code;
     while code2.len() > 0 && code2[0] == b' '{
         code2 = &code2[1..];
     }
     return code2;
+}
+
+fn parse_rational<'a>(code0: &'a [u8], val: &mut f64) -> Option<&'a [u8]> {
+    *val = 0.0;
+    let mut code = code0;
+    while code.len() > 0 &&  code[0] >= b'0' && code[0] <= b'9' {
+        *val = *val * 10.0;
+        let charcode = code[0] - b'0';
+        *val = *val + f64::from(charcode);
+        code = &code[1..]
+    }
+    
+    
+    if code.len() > 0 && code[0] == b'.' {
+        code = &code[1..];
+        let mut subscale = 0.1;
+        while code.len() > 0 &&  code[0] >= b'0' && code[0] <= b'9' {
+            let charcode = f64::from(code[0] - b'0');
+            *val += subscale * charcode;
+            subscale *= 0.1;
+            code = &code[1..]
+    
+        }
+        return Some(code);    
+    }else{
+        // there is no '.' -> not a rational.
+    }
+    
+    return None;
+
+    
+
 }
 
 fn parse_symbol<'a>(ctx: &mut LispContext, code0: &'a [u8], value: &mut LispValue) ->  Option<&'a[u8]>{
@@ -171,6 +204,13 @@ fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) ->  O
         *value = LispValue::Integer(integer_value);
         return Option::Some(code3);
     }
+    let mut rational_value: f64 = 0.0;
+    if let Some(code3) = parse_rational(code2, &mut rational_value)  {
+        *value = LispValue::Rational(rational_value);
+        return Option::Some(code3);
+    }
+
+
     if code2.len() == 0 {
         return None;
     }
@@ -191,6 +231,7 @@ fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) ->  O
             code2 = skip_whitespace(code2);
 
         }
+        code2 = &code2[1..]; 
 
         let mut v = LispValue::Nil;
         while sub.len() > 0{
@@ -258,9 +299,9 @@ fn eq(a: &LispValue, b: &LispValue ) -> bool {
 
 
 fn main() {
-    let mut ctx = LispContext::new();println!("Hello, world!");
+    let mut ctx = LispContext::new();
     
-    let code = "(111 222 333 asd asd asdd asddd asdd asd(x y z))";//"(+ 1 2)";
+    let code = "(111 222  333 asd asd asdd asddd asdd asd 1.1 2.2 3.3 (x y z) (1.0 2.0 3.0) 3.14)";
     let mut out : LispValue = LispValue::Nil;
     parse(&mut ctx, code.as_bytes(), &mut out);
     println!("Parsed: {}", out);
