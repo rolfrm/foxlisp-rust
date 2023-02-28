@@ -101,7 +101,7 @@ impl<'a> LispContext{
         return LispContext{symbols: HashMap::new(), id_gen: 1};
     }
 
-    fn new_symbol(& mut self, name: &str) -> LispValue{
+    fn get_symbol(& mut self, name: &str) -> LispValue{
         
 
         if let Option::Some(id) = self.symbols.get(name) {
@@ -153,7 +153,7 @@ fn parse_symbol<'a>(ctx: &mut LispContext, code0: &'a [u8], value: &mut LispValu
     }
 
     if let Ok(str) = String::from_utf8(Vec::from(&code0[..len])){
-        *value = ctx.new_symbol(&str.to_string()) ;
+        *value = ctx.get_symbol(&str.to_string()) ;
     
     }
     
@@ -229,6 +229,28 @@ fn cdr(lisp: &LispValue) -> &LispValue{
     }
     return &LispValue::Nil;
 }
+fn cadr(lisp: &LispValue) -> &LispValue {
+    return car(cdr(lisp));
+}
+fn cddr(lisp: &LispValue) -> &LispValue {
+    return cdr(cdr(lisp));
+}
+
+fn cdddr(lisp: &LispValue) -> &LispValue {
+    return cdr(cddr(lisp));
+}
+
+fn cddddr(lisp: &LispValue) -> &LispValue {
+    return cdr(cdddr(lisp));
+}
+
+fn caddr(lisp: &LispValue) -> &LispValue {
+    return car(cddr(lisp));
+}
+
+fn cadddr(lisp: &LispValue) -> &LispValue {
+    return car(cdddr(lisp));
+}
 
 fn eq(a: &LispValue, b: &LispValue ) -> bool {
     return a == b
@@ -237,12 +259,14 @@ fn eq(a: &LispValue, b: &LispValue ) -> bool {
 
 fn main() {
     let mut ctx = LispContext::new();println!("Hello, world!");
-    let nil = LispValue::Nil;
-    let c = ctx.new_symbol("123");
-
+    
     let code = "(111 222 333 asd asd asdd asddd asdd asd(x y z))";//"(+ 1 2)";
     let mut out : LispValue = LispValue::Nil;
-    let code2 = parse(&mut ctx, code.as_bytes(), &mut out);
-    println!("Parsed: {} {}", out, eq(&LispValue::Integer(111), car(cdr(&out))));
+    parse(&mut ctx, code.as_bytes(), &mut out);
+    println!("Parsed: {}", out);
+
+    assert!(eq(&LispValue::Integer(222), car(cdr(&out))));
+    assert!(eq(&ctx.get_symbol("asd"), cadddr(&out)));
+    assert!(!eq(&ctx.get_symbol("asdd"), cadddr(&out)));
 
 }
