@@ -11,7 +11,9 @@ enum LispValue{
     Integer(i64),
     Symbol(i64),
     BigInt(num::BigInt),
-    BigRational(num::BigRational)
+    BigRational(num::BigRational),
+    Function1(fn(LispValue) -> LispValue),
+    Function2(fn(LispValue, LispValue) -> LispValue)
 }
 
 impl LispValue {
@@ -87,14 +89,15 @@ impl fmt::Display for LispValue {
             LispValue::String(str) => {
                 return write!(f, "{}", str);
             }
-            &LispValue::Symbol(id) => {
+            LispValue::Symbol(id) => {
                 return write!(f, "Symbol({})", id)
             }
-            &LispValue::Rational(x) => {write!(f, "{0}", x)}
+            LispValue::Rational(x) => {write!(f, "{0}", x)}
             LispValue::Integer(x) => {write!(f, "{0}", x)}
             LispValue::BigInt(x) => {write!(f, "{0}", x)}
             LispValue::BigRational(x) => {write!(f, "{0}", x)}
-
+            LispValue::Function1(_) => todo!(),
+            LispValue::Function2(_) => todo!(),
         }
     
     }
@@ -104,7 +107,7 @@ struct LispContext{
     symbols: HashMap<String, i64>,
     id_gen: i64,
     globals: Vec<LispValue>,
-    global_names: HashMap<i64, i64>
+    global_names: HashMap<i64, usize>
 }
 
 impl<'a> LispContext{
@@ -112,17 +115,33 @@ impl<'a> LispContext{
         return LispContext{symbols: HashMap::new(), id_gen: 1, globals: Vec::new(), global_names: HashMap::new()};
     }
 
-    fn get_symbol(& mut self, name: &str) -> LispValue{
+    fn get_symbol_id(& mut self, name: &str) -> i64{
         
 
         if let Option::Some(id) = self.symbols.get(name) {
-            return LispValue::Symbol(*id);
+            return *id;
         }
         let id2  = self.id_gen;
         self.id_gen += 1;
 
         self.symbols.insert(name.into(), id2);
-        return LispValue::Symbol(id2)
+        return id2
+    }
+
+    fn get_symbol(& mut self, name: &str) -> LispValue{
+        return LispValue::Symbol(self.get_symbol_id(name))
+    }
+
+    fn set_global(&mut self, symbol_name: i64, value: LispValue){
+        
+        if let Option::Some(index) = self.global_names.get(&symbol_name) {
+            self.globals[*index] = value;
+        }else{
+            let new_index = self.globals.len();
+
+            self.global_names.insert(symbol_name, new_index);
+            self.globals.insert(new_index, value);
+        }
     }
 }
 
@@ -308,10 +327,15 @@ fn eq(a: &LispValue, b: &LispValue ) -> bool {
     return a == b
 }
 
+fn lisp_print(v: LispValue) -> LispValue{
+    println!("{}", v);
+    return LispValue::Nil;
+}
 
 fn main() {
     let mut ctx = LispContext::new();
-    
+    let f = ctx.get_symbol_id("+");
+    ctx.set_global(f, LispValue::Function1(lisp_print));
     let code = "(111 222  333 asd asd asdd asddd asdd asd 1.1 2.2 3.3 (x y z) (1.0 2.0 3.0) 3.14)";
     let mut out : LispValue = LispValue::Nil;
     parse(&mut ctx, code.as_bytes(), &mut out);
