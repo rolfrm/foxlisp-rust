@@ -2,6 +2,7 @@
 use std::fmt;
 use std::collections::HashMap;
 
+#[derive(PartialEq)]
 enum LispValue{
     Cons(Box<(LispValue, LispValue)>),
     Nil,
@@ -13,9 +14,6 @@ enum LispValue{
 
 impl LispValue {
     
-    fn cons(car: LispValue, cdr: LispValue) -> LispValue {
-        return LispValue::Cons(Box::new((car, cdr)));
-    }
 }
 
 impl From<i64> for LispValue {
@@ -100,8 +98,7 @@ struct LispContext{
 
 impl<'a> LispContext{
     fn new() -> LispContext{
-        let x  = LispContext{symbols: HashMap::new(), id_gen: 1};
-        return x
+        return LispContext{symbols: HashMap::new(), id_gen: 1};
     }
 
     fn new_symbol(& mut self, name: &str) -> LispValue{
@@ -169,9 +166,9 @@ fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) ->  O
     let mut code2 = code;
     code2 = skip_whitespace(code2);
 
-    let mut integerval: i64 = 0;
-    if let Some(code3) = parse_integer(code2, &mut integerval)  {
-        *value = LispValue::Integer(integerval);
+    let mut integer_value: i64 = 0;
+    if let Some(code3) = parse_integer(code2, &mut integer_value)  {
+        *value = LispValue::Integer(integer_value);
         return Option::Some(code3);
     }
     if code2.len() == 0 {
@@ -219,34 +216,33 @@ fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) ->  O
     return Some(code2);
 }
 
+fn car(lisp: &LispValue) -> &LispValue{
+    if let LispValue::Cons(l) = lisp {
+        return &l.0;
+    }
+    return &LispValue::Nil;
+}
+
+fn cdr(lisp: &LispValue) -> &LispValue{
+    if let LispValue::Cons(l) = lisp {
+        return &l.1;
+    }
+    return &LispValue::Nil;
+}
+
+fn eq(a: &LispValue, b: &LispValue ) -> bool {
+    return a == b
+}
+
+
 fn main() {
     let mut ctx = LispContext::new();println!("Hello, world!");
     let nil = LispValue::Nil;
-    println!("{}", nil);
-    let X = "Hej";
-    let str1 = LispValue::from("Hej");
-    let str2 = LispValue::from("123");
-    let x2 : i64 = LispValue::from(123).try_into().unwrap();
-    let v1 = LispValue::cons(str1, LispValue::cons(str2, LispValue::Nil));
-    println!("{}", v1);
-    
-    
-    let a = ctx.new_symbol("1234");
-    let b = ctx.new_symbol("123");
-
-{
-    let alice = String::from("I like dogs");
-    let d = ctx.new_symbol(&alice);
-
-}
-
     let c = ctx.new_symbol("123");
-
-    println!("{} {} {}", a, b, c);
 
     let code = "(111 222 333 asd asd asdd asddd asdd asd(x y z))";//"(+ 1 2)";
     let mut out : LispValue = LispValue::Nil;
     let code2 = parse(&mut ctx, code.as_bytes(), &mut out);
-    println!("Parsed: {}", out);
+    println!("Parsed: {} {}", out, eq(&LispValue::Integer(111), car(cdr(&out))));
 
 }
