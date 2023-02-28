@@ -1,12 +1,5 @@
 
-
-use std::borrow::Borrow;
-use std::io::BufReader;
-use std::io::Read;
-use std::file;
 use std::fmt;
-use std::collections::HashMap;
-use std::str::FromStr;
 
 enum LispValue{
     Cons(Box<(LispValue, LispValue)>),
