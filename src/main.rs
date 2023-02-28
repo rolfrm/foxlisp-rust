@@ -1,5 +1,6 @@
 
 use std::fmt;
+use std::collections::HashMap;
 
 enum LispValue{
     Cons(Box<(LispValue, LispValue)>),
@@ -47,14 +48,31 @@ impl fmt::Display for LispValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
             LispValue::Cons (bx)=>{
-                
+                let mut it = &*self;
                 write!(f, "(").unwrap();
-                write!(f, "{}", bx.0).unwrap();
-                if let LispValue::Nil = bx.1 {
-                    return write!(f, ")");    
+                let mut first = true;
+
+                while let LispValue::Cons(bx2) = &it  {
+                    if first {
+                        first = false
+                    }else{
+                        write!(f, " ").unwrap();
+                        
+                    }
+                    write!(f, "{}", bx2.0).unwrap();
+                    it = &bx2.1;
+                    
+                    
                 }
-                write!(f, " ").unwrap();
-                write!(f, "{}", bx.1).unwrap();
+                
+                if let LispValue::Nil = it {
+                    //
+                }else{
+                    write!(f, " . ").unwrap();
+                    write!(f, "{}", it).unwrap();
+
+                }
+                
                 return write!(f, ")");
                 
             }
@@ -86,11 +104,7 @@ impl<'a> LispContext{
         return x
     }
 
-    fn new2() -> HashMap<String, i64> {
-        HashMap::new()
-    }
-
-    fn NewSymbol(& mut self, name: &str) -> LispValue{
+    fn new_symbol(& mut self, name: &str) -> LispValue{
         
 
         if let Option::Some(id) = self.symbols.get(name) {
@@ -121,7 +135,7 @@ fn parse_integer<'a>(code0: &'a [u8], val: &mut i64) -> Option<&'a [u8]>{
 }
 fn skip_whitespace(code: &[u8]) -> &[u8]{
     let mut code2 = code;
-    while(code2.len() > 0 && code2[0] == b' '){
+    while code2.len() > 0 && code2[0] == b' '{
         code2 = &code2[1..];
     }
     return code2;
@@ -132,17 +146,17 @@ fn parse_symbol<'a>(ctx: &mut LispContext, code0: &'a [u8], value: &mut LispValu
     let mut code = code0;
     let mut len = 0;
     
-    while code.len() > 0 &&  code[0] != b')' && code[0] != b' ' {
+    while code.len() > 0 &&  code[0] != b')' && code[0] != b'(' && code[0] != b' ' {
         code = &code[1..];
         len += 1;
     }
     
-    if code.len() > 0 && code[0] != b')' && code[0] != b' '{
+    if code.len() > 0 && code[0] != b')' && code[0] != b' ' && code[0] != b'('{
         return None
     }
 
     if let Ok(str) = String::from_utf8(Vec::from(&code0[..len])){
-        *value = ctx.NewSymbol(&str.to_string()) ;
+        *value = ctx.new_symbol(&str.to_string()) ;
     
     }
     
@@ -171,8 +185,6 @@ fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) ->  O
         let mut sub = Vec::new();
         while code2.len() > 0 && code2[0] != b')'{
             
-
-            println!("{}", char::from(code2[0]));
             let mut v2 = LispValue::Nil;
             if let Some(x) = parse(ctx, code2, &mut v2) {
                 sub.push(v2);
@@ -200,7 +212,6 @@ fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) ->  O
         let mut v = LispValue::Nil;
         
         if let Some(sym) = parse_symbol(ctx, code2, value) {
-            println!("Parsed  symbol!");
             return Some(sym)
         }
     }
@@ -220,20 +231,20 @@ fn main() {
     println!("{}", v1);
     
     
-    let a = ctx.NewSymbol("1234");
-    let b = ctx.NewSymbol("123");
+    let a = ctx.new_symbol("1234");
+    let b = ctx.new_symbol("123");
 
 {
     let alice = String::from("I like dogs");
-    let d = ctx.NewSymbol(&alice);
+    let d = ctx.new_symbol(&alice);
 
 }
 
-    let c = ctx.NewSymbol("123");
+    let c = ctx.new_symbol("123");
 
     println!("{} {} {}", a, b, c);
 
-    let code = "(111 222 333 asd)";//"(+ 1 2)";
+    let code = "(111 222 333 asd asd asdd asddd asdd asd(x y z))";//"(+ 1 2)";
     let mut out : LispValue = LispValue::Nil;
     let code2 = parse(&mut ctx, code.as_bytes(), &mut out);
     println!("Parsed: {}", out);
