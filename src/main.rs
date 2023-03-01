@@ -442,6 +442,14 @@ fn lisp_add(v: Vec<LispValue>) -> LispValue {
     return v0.into();
 }
 
+fn lisp_conss(v: Vec<LispValue>) -> LispValue {
+    let mut v0 = LispValue::Nil;
+    for i in v.iter().rev() {
+        v0 = LispValue::Cons(Box::new((i.clone(), v0)));
+    }
+    return v0;
+}
+
 fn lisp_raise_error(ctx: &mut LispContext, error: LispValue){
 
 }
@@ -518,6 +526,7 @@ fn main() {
     ctx.set_global_str("print", LispValue::Function1(lisp_print));
     ctx.set_global_str("car", LispValue::Function1(car2));
     ctx.set_global_str("+", LispValue::FunctionN(lisp_add));
+    ctx.set_global_str("cons", LispValue::FunctionN(lisp_conss));
     let code = "(111 222  333 asd asd asdd asddd asdd asd 1.1 2.2 3.3 (x y z) (1.0 2.0 3.0) 3.14)";
     let mut out : LispValue = LispValue::Nil;
     parse(&mut ctx, code.as_bytes(), &mut out);
@@ -528,7 +537,7 @@ fn main() {
     assert!(eq(&LispValue::Integer(222), car(cdr(&out))));
     assert!(eq(&ctx.get_symbol("asd"), cadddr(&out)));
     assert!(!eq(&ctx.get_symbol("asdd"), cadddr(&out)));
-    let code2 = parse_string(&mut ctx, "(+ 1234 9999 4321 1111)");
+    let code2 = parse_string(&mut ctx, "(cons 1 (cons (+ 1234 9999 4321 1111)))");
     let result = lisp_eval(&mut ctx, &code2);
     println!("Code2: {}", result);
 
