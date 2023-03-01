@@ -13,7 +13,8 @@ enum LispValue{
     BigInt(num::BigInt),
     BigRational(num::BigRational),
     Function1(fn(LispValue) -> LispValue),
-    Function2(fn(LispValue, LispValue) -> LispValue)
+    Function2(fn(LispValue, LispValue) -> LispValue),
+    FunctionN(fn(Vec<LispValue>) -> LispValue)
 }
 
 impl LispValue {
@@ -98,6 +99,7 @@ impl fmt::Display for LispValue {
             LispValue::BigRational(x) => {write!(f, "{0}", x)}
             LispValue::Function1(_) => todo!(),
             LispValue::Function2(_) => todo!(),
+            LispValue::FunctionN(_) => todo!()
         }
     
     }
@@ -142,6 +144,10 @@ impl<'a> LispContext{
             self.global_names.insert(symbol_name, new_index);
             self.globals.insert(new_index, value);
         }
+    }
+    fn set_global_str(& mut self, name: &str, value: LispValue){
+        let id = self.get_symbol_id(name);
+        self.set_global(id, value);
     }
 }
 
@@ -287,11 +293,26 @@ fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) ->  O
     return Some(code2);
 }
 
+fn parse_string(ctx: &mut LispContext, code: &str) -> LispValue{
+    let mut c = code.as_bytes();
+    let mut v = LispValue::Nil;
+    parse(ctx, c, &mut v);
+    return v;
+}
+
+
 fn car(lisp: &LispValue) -> &LispValue{
     if let LispValue::Cons(l) = lisp {
         return &l.0;
     }
     return &LispValue::Nil;
+}
+
+fn car2(lisp: LispValue) -> LispValue{
+    if let LispValue::Cons(l) = lisp {
+        return l.0;
+    }
+    return LispValue::Nil;
 }
 
 fn cdr(lisp: &LispValue) -> &LispValue{
@@ -329,13 +350,18 @@ fn eq(a: &LispValue, b: &LispValue ) -> bool {
 
 fn lisp_print(v: LispValue) -> LispValue{
     println!("{}", v);
-    return LispValue::Nil;
+    return v;
+}
+
+fn lisp_add(v: Vec<LispValue>) -> LispValue {
+    return LispValue::Integer(0);
 }
 
 fn main() {
     let mut ctx = LispContext::new();
-    let f = ctx.get_symbol_id("+");
-    ctx.set_global(f, LispValue::Function1(lisp_print));
+    ctx.set_global_str("print", LispValue::Function1(lisp_print));
+    ctx.set_global_str("car", LispValue::Function1(car2));
+    ctx.set_global_str("+", LispValue::FunctionN(lisp_add));
     let code = "(111 222  333 asd asd asdd asddd asdd asd 1.1 2.2 3.3 (x y z) (1.0 2.0 3.0) 3.14)";
     let mut out : LispValue = LispValue::Nil;
     parse(&mut ctx, code.as_bytes(), &mut out);
@@ -346,5 +372,7 @@ fn main() {
     assert!(eq(&LispValue::Integer(222), car(cdr(&out))));
     assert!(eq(&ctx.get_symbol("asd"), cadddr(&out)));
     assert!(!eq(&ctx.get_symbol("asdd"), cadddr(&out)));
+    let code2 = parse_string(&mut ctx, "(+ 1 2)");
+    println!("Code2: {}", code2);
 
 }
