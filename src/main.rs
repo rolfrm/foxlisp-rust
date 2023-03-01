@@ -2,7 +2,8 @@
 use std::fmt;
 use std::collections::HashMap;
 use num;
-#[derive(PartialEq)]
+
+#[derive(Clone)]
 enum LispValue{
     Cons(Box<(LispValue, LispValue)>),
     Nil,
@@ -19,6 +20,75 @@ enum LispValue{
 
 impl LispValue {
     
+}
+
+impl PartialEq for LispValue{
+    fn eq(&self, other: &Self) -> bool 
+    {
+        match self {
+            LispValue::Cons(c) => {
+                if let LispValue::Cons(c2) = other {
+                    return c2 == c;
+                }
+                return false;
+            },
+            LispValue::Nil =>  {
+                if let LispValue::Nil = other {
+                    return true;
+                }
+                return false;
+            },
+            LispValue::String(v1) =>  {
+                if let LispValue::String(v2) = other {
+                    return v1 == v2;
+                }
+                return false;
+            },
+            LispValue::Rational(v1) => {
+                if let LispValue::Rational(v2) = other {
+                    return v1 == v2;
+                }
+                return false;
+            },
+            LispValue::Integer(v1) => {
+                if let LispValue::Integer(v2) = other {
+                    return v1 == v2;
+                }
+                return false;
+            },
+            LispValue::Symbol(v1) => {
+                if let LispValue::Symbol(v2) = other {
+                    return v1 == v2;
+                }
+                return false;
+            },
+            LispValue::BigInt(v1) =>{
+                if let LispValue::BigInt(v2) = other {
+                    return v1 == v2;
+                }
+                return false;
+            },
+            LispValue::BigRational(v1) => {
+                if let LispValue::BigRational(v2) = other {
+                    return v1 == v2;
+                }
+                return false;
+            },
+            LispValue::Function1(_) => {
+                
+                return false;
+            },
+            LispValue::Function2(_) => {
+                
+                return false;
+            },
+            LispValue::FunctionN(_) => {
+                
+                return false;
+            },
+        }
+    
+    }
 }
 
 impl From<i64> for LispValue {
@@ -145,6 +215,15 @@ impl<'a> LispContext{
             self.globals.insert(new_index, value);
         }
     }
+
+    fn get_global(&self, symbol_name: i64) -> Option<&LispValue>{
+        if let Option::Some(index) = self.global_names.get(&symbol_name) {
+            return Some(&self.globals[*index]);
+        }
+        return None;
+        
+    }
+
     fn set_global_str(& mut self, name: &str, value: LispValue){
         let id = self.get_symbol_id(name);
         self.set_global(id, value);
@@ -354,11 +433,88 @@ fn lisp_print(v: LispValue) -> LispValue{
 }
 
 fn lisp_add(v: Vec<LispValue>) -> LispValue {
-    return LispValue::Integer(0);
+    let mut v0 = 0;
+    for i in v.iter() {
+        if let LispValue::Integer(x) = i {
+            v0 += x;
+        }
+    }
+    return v0.into();
+}
+
+fn lisp_raise_error(ctx: &mut LispContext, error: LispValue){
+
+}
+
+fn cons_count(v: &LispValue ) -> i64 {
+    let mut it = v;
+    let mut count = 0;
+    while let LispValue::Cons(c) = it {
+        count += 1;
+        it = &c.1;
+    }
+    return count;
+}
+
+fn lisp_invoken<'a>(ctx :&mut LispContext, argsl: &'a LispValue, fcn : fn(Vec<LispValue>) -> LispValue) -> LispValue{
+    let mut args : Vec<LispValue> = Vec::new();
+    let mut it = argsl;
+    while let LispValue::Cons(c) = it {
+        let r = lisp_eval(ctx, &c.0);
+        args.push(r);
+        it = &c.1;
+    }
+    let args2 = args;
+    let r2 = fcn(args2);
+    return r2;
+}
+
+fn lisp_eval<'a>(ctx :&mut LispContext , v: &'a LispValue) -> LispValue{
+    match v {
+        LispValue::Cons (bx)=>{
+            
+            if let LispValue::Symbol(id) = bx.0{
+                if let Some(value) = ctx.get_global(id) {
+                    if let LispValue::FunctionN(f) = value {
+                        return lisp_invoken(ctx, &bx.1, *f);
+                    }
+
+                }
+                 
+            }
+            lisp_raise_error(ctx, "123".into());
+            
+            return LispValue::Nil;
+            
+        }
+        LispValue::Nil => {
+            return LispValue::Nil
+        }
+        LispValue::String(ref str) => {
+            return v.clone();
+        }
+        LispValue::Symbol(id) => {
+            if let Some(value) = ctx.get_global(*id) {
+                return LispValue::Nil;//value;
+
+            }else{
+                //lisp_raise_error(ctx, "123".into());
+                return LispValue::Nil;
+            }
+        }
+        LispValue::Rational(x) => {return v.clone()},
+        LispValue::Integer(x) => {return v.clone()},
+        LispValue::BigInt(ref x) => {return v.clone()},
+        LispValue::BigRational(ref x) => {return v.clone()},
+        LispValue::Function1(_) => {return v.clone()},
+        LispValue::Function2(_) => {return v.clone()},
+        LispValue::FunctionN(_) => {return v.clone()}
+    }
 }
 
 fn main() {
-    let mut ctx = LispContext::new();
+    let mut ctx = Box::new(LispContext::new());
+        
     ctx.set_global_str("print", LispValue::Function1(lisp_print));
     ctx.set_global_str("car", LispValue::Function1(car2));
     ctx.set_global_str("+", LispValue::FunctionN(lisp_add));
@@ -372,7 +528,8 @@ fn main() {
     assert!(eq(&LispValue::Integer(222), car(cdr(&out))));
     assert!(eq(&ctx.get_symbol("asd"), cadddr(&out)));
     assert!(!eq(&ctx.get_symbol("asdd"), cadddr(&out)));
-    let code2 = parse_string(&mut ctx, "(+ 1 2)");
-    println!("Code2: {}", code2);
+    let code2 = parse_string(&mut ctx, "(+ 1234 9999 4321 1111)");
+    let result = lisp_eval(&mut ctx, &code2);
+    println!("Code2: {}", result);
 
 }
