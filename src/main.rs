@@ -1,10 +1,37 @@
 
 use std::fmt;
 use std::collections::HashMap;
-use num;
+use num::{self, Zero, Num, FromPrimitive, BigRational};
+mod lisp;
+use lisp::*;
+
+enum CallableType{
+    F1(fn(f64, f64) -> f64),
+    F2(fn(i64, i64) -> i64),
+    F3(fn(num::BigInt, num::BigInt) -> num::BigInt),
+    F4(fn(num::BigRational, num::BigRational) -> num::BigRational),
+}
+
+struct NumericFunc{
+    f_f64: fn(f64, f64) -> f64,
+    f_int: fn(i64, i64) -> i64,
+    f_bigint: fn(&num::BigInt, &num::BigInt) -> num::BigInt,
+    f_bigrational: fn(&num::BigRational, &num::BigRational) -> num::BigRational
+}
+
+
+struct Callable {
+
+}
+
+struct DynamicDispatch{
+
+}
+
+
 
 #[derive(Clone)]
-enum LispValue{
+pub enum LispValue{
     Cons(Box<(LispValue, LispValue)>),
     Nil,
     String(String),
@@ -380,66 +407,111 @@ fn parse_string(ctx: &mut LispContext, code: &str) -> LispValue{
 }
 
 
-fn car(lisp: &LispValue) -> &LispValue{
-    if let LispValue::Cons(l) = lisp {
-        return &l.0;
-    }
-    return &LispValue::Nil;
-}
-
-fn car2(lisp: LispValue) -> LispValue{
-    if let LispValue::Cons(l) = lisp {
-        return l.0;
-    }
-    return LispValue::Nil;
-}
-
-fn cdr(lisp: &LispValue) -> &LispValue{
-    if let LispValue::Cons(l) = lisp {
-        return &l.1;
-    }
-    return &LispValue::Nil;
-}
-fn cadr(lisp: &LispValue) -> &LispValue {
-    return car(cdr(lisp));
-}
-fn cddr(lisp: &LispValue) -> &LispValue {
-    return cdr(cdr(lisp));
-}
-
-fn cdddr(lisp: &LispValue) -> &LispValue {
-    return cdr(cddr(lisp));
-}
-
-fn cddddr(lisp: &LispValue) -> &LispValue {
-    return cdr(cdddr(lisp));
-}
-
-fn caddr(lisp: &LispValue) -> &LispValue {
-    return car(cddr(lisp));
-}
-
-fn cadddr(lisp: &LispValue) -> &LispValue {
-    return car(cdddr(lisp));
-}
-
-fn eq(a: &LispValue, b: &LispValue ) -> bool {
-    return a == b
-}
 
 fn lisp_print(v: LispValue) -> LispValue{
     println!("{}", v);
     return v;
 }
 
-fn lisp_add(v: Vec<LispValue>) -> LispValue {
-    let mut v0 = 0;
-    for i in v.iter() {
-        if let LispValue::Integer(x) = i {
-            v0 += x;
+fn generic_add<T>(a: T, b: T) -> T where T: num::Num{
+    return a + b;
+}
+
+static adders: NumericFunc = NumericFunc{
+    f_f64: generic_add,
+    f_int: generic_add,
+    f_bigint: |x,y|{ x + y},
+    f_bigrational: |x,y|{ x + y},
+};
+
+static subbers: NumericFunc = NumericFunc{
+    f_f64: |x,y|{ x - y},
+    f_int: |x,y|{ x - y},
+    f_bigint: |x,y|{ x - y},
+    f_bigrational: |x,y|{ x - y},
+};
+
+fn apply_number_func(func: &NumericFunc, a: LispValue, b: LispValue) -> LispValue
+{
+    if let LispValue::Integer(x) = a {
+        if let LispValue::Integer(y) = b {
+            return LispValue::Integer((func.f_int)(x, y));
+        }
+        if let LispValue::Rational(y) = b {
+            return LispValue::Rational((func.f_f64)(x as f64, y));
+        }
+        if let LispValue::BigInt(y) = &b {
+            return LispValue::BigInt((func.f_bigint)(&num::BigInt::from(x), y));
+        }
+        if let LispValue::BigRational(y) = &b {
+            return LispValue::BigRational((func.f_bigrational)(&num::BigRational::from_i64(x).unwrap(), y));
         }
     }
-    return v0.into();
+    if let LispValue::Rational(x) = a {
+        if let LispValue::Integer(y) = b {
+            return LispValue::Rational((func.f_f64)(x, y as f64));
+        }
+        if let LispValue::Rational(y) = b {
+            return LispValue::Rational((func.f_f64)(x, y));
+        }
+        if let LispValue::BigInt(y) = &b {
+            return LispValue::BigRational((func.f_bigrational)(&num::BigRational::from_f64(x).unwrap(), &num::BigRational::from(y.clone())));
+        }
+        if let LispValue::BigRational(y) = &b {
+            return LispValue::BigRational((func.f_bigrational)(&num::BigRational::from_f64(x).unwrap(), y));
+        }
+    }
+    if let LispValue::BigInt(x) = &a {
+        if let LispValue::Integer(y) = b {
+            return LispValue::BigRational((func.f_bigrational)(&BigRational::from(x.clone()), &BigRational::from_i64(y).unwrap()));
+        }
+        if let LispValue::Rational(y) = b {
+            return LispValue::BigRational((func.f_bigrational)(&BigRational::from(x.clone()), &BigRational::from_f64(y).unwrap()));
+        }
+        if let LispValue::BigInt(y) = &b {
+            return LispValue::BigInt((func.f_bigint)(x, y));
+        }
+        if let LispValue::BigRational(y) = &b {
+            return LispValue::BigRational((func.f_bigrational)(&num::BigRational::from(x.clone()), y));
+        }
+    }
+
+    if let LispValue::BigRational(x) = &a {
+        if let LispValue::Integer(y) = b {
+            return LispValue::BigRational((func.f_bigrational)(x, &BigRational::from_i64(y).unwrap()));
+        }
+        if let LispValue::Rational(y) = b {
+            return LispValue::BigRational((func.f_bigrational)(x, &BigRational::from_f64(y).unwrap()));
+        }
+        if let LispValue::BigInt(y) = &b {
+            return LispValue::BigRational((func.f_bigrational)(x, &BigRational::from(y.clone())));
+        }
+        if let LispValue::BigRational(y) = &b {
+            return LispValue::BigRational((func.f_bigrational)(x, y));
+        }
+    }
+    return LispValue::Nil;
+
+}
+
+fn lisp_apply_numbers(v: &Vec<LispValue>, func: &NumericFunc,) -> LispValue{
+    let first = v.first();
+    if let Some(firstv) = first {
+        let mut acc = firstv.clone();
+        for i in v.iter() {
+            acc = apply_number_func(func, acc, i.clone());
+        }
+        return acc;
+    }
+    return LispValue::Nil;
+}
+
+fn lisp_add(v: Vec<LispValue>) -> LispValue {
+    return lisp_apply_numbers(&v, &adders);
+}
+
+fn lisp_sub(v: Vec<LispValue>) -> LispValue {
+    return lisp_apply_numbers(&v, &subbers);
 }
 
 fn lisp_conss(v: Vec<LispValue>) -> LispValue {
@@ -520,12 +592,17 @@ fn lisp_eval<'a>(ctx :&mut LispContext , v: &'a LispValue) -> LispValue{
     }
 }
 
+
+
 fn main() {
     let mut ctx = Box::new(LispContext::new());
+    
         
     ctx.set_global_str("print", LispValue::Function1(lisp_print));
     ctx.set_global_str("car", LispValue::Function1(car2));
+    //ctx.set_global_str("caddr", LispValue::Function1(caddr));
     ctx.set_global_str("+", LispValue::FunctionN(lisp_add));
+    ctx.set_global_str("-", LispValue::FunctionN(lisp_sub));
     ctx.set_global_str("cons", LispValue::FunctionN(lisp_conss));
     let code = "(111 222  333 asd asd asdd asddd asdd asd 1.1 2.2 3.3 (x y z) (1.0 2.0 3.0) 3.14)";
     let mut out : LispValue = LispValue::Nil;
