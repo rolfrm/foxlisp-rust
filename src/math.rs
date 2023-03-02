@@ -1,5 +1,4 @@
 use num::{self, FromPrimitive, BigRational, BigInt, ToPrimitive};
-
 use crate::LispValue;
 
 struct NumericFunc{
@@ -22,12 +21,14 @@ static SUB_OP: NumericFunc = NumericFunc{
     f_bigint: |x,y|{ x - y},
     f_bigrational: |x,y|{ x - y},
 };
+
 static MUL_OP: NumericFunc = NumericFunc{
     f_f64: |x,y|{ x * y},
     f_int: |x,y|{ x.checked_mul(y)},
     f_bigint: |x,y|{ x * y},
     f_bigrational: |x,y|{ x * y},
 };
+
 static DIV_OP: NumericFunc = NumericFunc{
     f_f64: |x,y|{ x / y},
     f_int: |x,y|{ x.checked_div(y)},

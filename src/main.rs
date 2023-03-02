@@ -1,30 +1,10 @@
-
 use std::fmt;
 use std::collections::HashMap;
-use num::{self, FromPrimitive, BigRational, BigInt, ToPrimitive};
+use num::{self};
 mod lisp;
 use lisp::*;
 mod math;
 use math::*;
-
-enum CallableType{
-    F1(fn(f64, f64) -> f64),
-    F2(fn(i64, i64) -> i64),
-    F3(fn(num::BigInt, num::BigInt) -> num::BigInt),
-    F4(fn(num::BigRational, num::BigRational) -> num::BigRational),
-}
-
-
-
-struct Callable {
-
-}
-
-struct DynamicDispatch{
-
-}
-
-
 
 #[derive(Clone)]
 pub enum LispValue{
@@ -148,7 +128,7 @@ impl TryInto<i64> for LispValue{
 impl fmt::Display for LispValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
-            LispValue::Cons (bx)=>{
+            LispValue::Cons (_)=>{
                 let mut it = &*self;
                 write!(f, "(").unwrap();
                 let mut first = true;
