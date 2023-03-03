@@ -15,6 +15,7 @@ pub enum NativeFunc{
     Function2(fn(LispValue, LispValue) -> LispValue),
     Function1r(fn(&LispValue) -> &LispValue),
     Function2r(for<'a> fn(&'a LispValue, &'a LispValue) -> &'a LispValue),
+    FunctionN(fn(Vec<LispValue>) -> LispValue)
 }
 
 #[derive(Clone)]
@@ -28,8 +29,7 @@ pub enum LispValue
     Symbol(i64),
     BigInt(num::BigInt),
     BigRational(num::BigRational),
-    NativeFunction(NativeFunc),
-    FunctionN(fn(Vec<LispValue>) -> LispValue)
+    NativeFunction(NativeFunc)
 }
 
 impl LispValue {
@@ -38,6 +38,9 @@ impl LispValue {
     }
     pub fn from_1r(item:fn(&LispValue) -> &LispValue) -> Self {
         LispValue::NativeFunction(NativeFunc::Function1r(item))
+    }
+    pub fn from_n(item:fn(Vec<LispValue>) -> LispValue) -> Self {
+        LispValue::NativeFunction(NativeFunc::FunctionN(item))
     }
 }
 
@@ -96,11 +99,7 @@ impl PartialEq for LispValue{
             LispValue::NativeFunction(_) => {
                 
                 return false;
-            },
-            LispValue::FunctionN(_) => {
-                
-                return false;
-            },
+            }
         }
     
     }
@@ -129,7 +128,7 @@ impl From<&str> for LispValue {
 
 impl From<fn(Vec<LispValue>) -> LispValue> for LispValue {
     fn from(item: fn(Vec<LispValue>) -> LispValue) -> Self {
-        LispValue::FunctionN(item)
+        LispValue::NativeFunction(NativeFunc::FunctionN(item))
     }
 }
 
@@ -232,8 +231,7 @@ impl fmt::Display for LispValue {
             LispValue::Integer(x) => {write!(f, "{0}", x)}
             LispValue::BigInt(x) => {write!(f, "{0}", x)}
             LispValue::BigRational(x) => {write!(f, "{0}", x)}
-            LispValue::NativeFunction(_) => todo!(),
-            LispValue::FunctionN(_) => todo!()
+            LispValue::NativeFunction(_) => todo!()
         }
     
     }
@@ -309,7 +307,7 @@ fn eq(a: &LispValue, b: &LispValue ) -> bool {
 
 
 fn lisp_raise_error(ctx: &mut LispContext, error: LispValue){
-
+    println!("ERROR {}", error);
 }
 
 fn cons_count(v: &LispValue ) -> i64 {
@@ -360,33 +358,29 @@ fn lisp_invoke1r<'a>(ctx :&mut LispContext, v: &'a LispValue, fcn : fn(&LispValu
 fn lisp_eval<'a>(ctx :&mut LispContext , v: &'a LispValue) -> LispValue{
     match v {
         LispValue::Cons (bx)=>{
+            let value = lisp_eval(ctx, &bx.0);
             
-            if let LispValue::Symbol(id) = bx.0{
-                if let Some(value) = ctx.get_global(id) {
-                    if let LispValue::FunctionN(f) = value {
-                        return lisp_invoken(ctx, &bx.1, *f);
-                    }
+                    
                     if let LispValue::NativeFunction(n) = value{
                         match n {
-                            NativeFunc::Function1(f) => return lisp_invoke1(ctx, &bx.1, *f),
-                            NativeFunc::Function2(f) => return lisp_invoke2(ctx, &bx.1, *f),
+                            NativeFunc::Function1(f) => return lisp_invoke1(ctx, &bx.1, f),
+                            NativeFunc::Function2(f) => return lisp_invoke2(ctx, &bx.1, f),
                             NativeFunc::Function1r(f) => {
-                                return lisp_invoke1r(ctx, &bx.1, *f);
-    
+                                return lisp_invoke1r(ctx, &bx.1, f);
                             },
                             NativeFunc::Function2r(f) => {
-                                return lisp_invoke2r(ctx, &bx.1, *f);
+                                return lisp_invoke2r(ctx, &bx.1, f);
                             },
+                            NativeFunc::FunctionN(f) => {
+                                return lisp_invoken(ctx, &bx.1, f);
+                            }
                         }
                     }
-
-                }
-                 
-            }
+                
             lisp_raise_error(ctx, "123".into());
             
             return LispValue::Nil;
-            
+               
         }
         LispValue::Nil => {
             return LispValue::Nil
@@ -396,7 +390,7 @@ fn lisp_eval<'a>(ctx :&mut LispContext , v: &'a LispValue) -> LispValue{
         }
         LispValue::Symbol(id) => {
             if let Some(value) = ctx.get_global(*id) {
-                return LispValue::Nil;//value;
+                return value.clone();
 
             }else{
                 //lisp_raise_error(ctx, "123".into());
@@ -408,7 +402,6 @@ fn lisp_eval<'a>(ctx :&mut LispContext , v: &'a LispValue) -> LispValue{
         LispValue::BigInt(ref x) => {return v.clone()},
         LispValue::BigRational(ref x) => {return v.clone()},
         LispValue::NativeFunction(_) => {return v.clone()},
-        LispValue::FunctionN(_) => {return v.clone()}
     }
 }
 

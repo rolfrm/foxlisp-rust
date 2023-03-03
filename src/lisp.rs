@@ -64,5 +64,6 @@ pub fn lisp_load_lisp(ctx: &mut LispContext){
     ctx.set_global_str("cddr", LispValue::from_1r(cddr));
     ctx.set_global_str("cdddr", LispValue::from_1r(cdddr));
     ctx.set_global_str("cddddr", LispValue::from_1r(cddddr));
+    ctx.set_global_str("list", LispValue::from_n(lisp_conss));
     
 }
