@@ -419,7 +419,7 @@ fn main() {
     
         
     ctx.set_global_str("println", LispValue::NativeFunction(NativeFunc::Function1(lisp_print)));
-    //ctx.set_global_str("caddr", LispValue::Function1(caddr));
+    
     lisp_load_lisp(&mut ctx);
     lisp_math_load(&mut ctx);
     

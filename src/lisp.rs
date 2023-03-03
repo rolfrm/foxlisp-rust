@@ -60,6 +60,9 @@ pub fn lisp_load_lisp(ctx: &mut LispContext){
     //ctx.set_global_str("list", LispValue::from(lisp_conss));
     ctx.set_global_str("car", LispValue::from_1r(car));
     ctx.set_global_str("cdr", LispValue::from_1r(cdr));
+    ctx.set_global_str("cadr", LispValue::from_1r(cadr));
     ctx.set_global_str("cddr", LispValue::from_1r(cddr));
+    ctx.set_global_str("cdddr", LispValue::from_1r(cdddr));
+    ctx.set_global_str("cddddr", LispValue::from_1r(cddddr));
     
 }
