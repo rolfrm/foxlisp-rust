@@ -38,12 +38,28 @@ pub fn cddddr(lisp: &LispValue) -> &LispValue {
     return cdr(cdddr(lisp));
 }
 
-
-
 pub fn cadddr(lisp: &LispValue) -> &LispValue {
     return car(cdddr(lisp));
 }
 
-pub fn eq(a: &LispValue, b: &LispValue ) -> bool {
-    return a == b
+fn lisp_conss(v: Vec<LispValue>) -> LispValue {
+    let mut v0 = LispValue::Nil;
+    for i in v.iter().rev() {
+        v0 = LispValue::Cons(Box::new((i.clone(), v0)));
+    }
+    return v0;
+}
+
+fn lisp_cons(a: LispValue, b: LispValue) -> LispValue{
+    println!("CONS: {} {}", a, b);
+    LispValue::Cons(Box::new((a, b)))
+}
+
+pub fn lisp_load_lisp(ctx: &mut LispContext){
+    ctx.set_global_str("cons", LispValue::from_2(lisp_cons));
+    //ctx.set_global_str("list", LispValue::from(lisp_conss));
+    ctx.set_global_str("car", LispValue::from_1r(car));
+    ctx.set_global_str("cdr", LispValue::from_1r(cdr));
+    ctx.set_global_str("cddr", LispValue::from_1r(cddr));
+    
 }

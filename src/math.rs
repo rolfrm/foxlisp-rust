@@ -1,5 +1,5 @@
 use num::{self, FromPrimitive, BigRational, BigInt, ToPrimitive};
-use crate::LispValue;
+use crate::{LispValue, LispContext};
 
 struct NumericFunc{
     f_f64: fn(f64, f64) -> f64,
@@ -124,19 +124,26 @@ fn lisp_apply_numbers(v: &Vec<LispValue>, func: &NumericFunc,) -> LispValue{
     return LispValue::Nil;
 }
 
-pub fn lisp_add(v: Vec<LispValue>) -> LispValue {
+fn lisp_add(v: Vec<LispValue>) -> LispValue {
     return lisp_apply_numbers(&v, &ADD_OP);
 }
 
-pub fn lisp_sub(v: Vec<LispValue>) -> LispValue {
+fn lisp_sub(v: Vec<LispValue>) -> LispValue {
     return lisp_apply_numbers(&v, &SUB_OP);
 }
 
-pub fn lisp_mul(v: Vec<LispValue>) -> LispValue {
+fn lisp_mul(v: Vec<LispValue>) -> LispValue {
     return lisp_apply_numbers(&v, &MUL_OP);
 }
 
-pub fn lisp_div(v: Vec<LispValue>) -> LispValue {
+fn lisp_div(v: Vec<LispValue>) -> LispValue {
     return lisp_apply_numbers(&v, &DIV_OP);
 }
 
+pub fn lisp_math_load(ctx: &mut LispContext){
+    ctx.set_global_str("+", LispValue::FunctionN(lisp_add));
+    ctx.set_global_str("-", LispValue::FunctionN(lisp_sub));
+    ctx.set_global_str("*", LispValue::FunctionN(lisp_mul));
+    ctx.set_global_str("/", LispValue::FunctionN(lisp_div));
+    
+}
