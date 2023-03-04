@@ -125,19 +125,29 @@ fn lisp_apply_numbers(v: &Vec<LispValue>, func: &NumericFunc,) -> LispValue{
 }
 
 fn lisp_add(v: Vec<LispValue>) -> LispValue {
-    return lisp_apply_numbers(&v, &ADD_OP);
+    lisp_apply_numbers(&v, &ADD_OP)
 }
 
 fn lisp_sub(v: Vec<LispValue>) -> LispValue {
-    return lisp_apply_numbers(&v, &SUB_OP);
+    lisp_apply_numbers(&v, &SUB_OP)
 }
 
 fn lisp_mul(v: Vec<LispValue>) -> LispValue {
-    return lisp_apply_numbers(&v, &MUL_OP);
+    lisp_apply_numbers(&v, &MUL_OP)
 }
 
 fn lisp_div(v: Vec<LispValue>) -> LispValue {
-    return lisp_apply_numbers(&v, &DIV_OP);
+    lisp_apply_numbers(&v, &DIV_OP)
+}
+
+fn lisp_bigrational(v: LispValue) -> LispValue {
+    match v {
+        LispValue::Integer(i) => LispValue::BigRational(num::BigRational::from_i64(i).unwrap()),
+        LispValue::Rational(r) => LispValue::BigRational(num::BigRational::from_f64(r).unwrap()),
+        LispValue::BigRational(_) => v,
+        LispValue::BigInt(i) => LispValue::BigRational(num::BigRational::from(i)),
+        _ => LispValue::Nil   
+    }
 }
 
 pub fn lisp_math_load(ctx: &mut LispContext){
@@ -145,5 +155,5 @@ pub fn lisp_math_load(ctx: &mut LispContext){
     ctx.set_global_str("-", LispValue::from_n(lisp_sub));
     ctx.set_global_str("*", LispValue::from_n(lisp_mul));
     ctx.set_global_str("/", LispValue::from_n(lisp_div));
-    
+    ctx.set_global_str("big-rational", LispValue::from_1(lisp_bigrational));
 }
