@@ -61,6 +61,11 @@ pub fn cadddr(lisp: &LispValue) -> &LispValue {
     return car(cdddr(lisp));
 }
 
+fn lisp_print(v: LispValue) -> LispValue{
+    println!("{}", v);
+    return v;
+}
+
 fn lisp_conss(v: Vec<LispValue>) -> LispValue {
     let mut v0 = LispValue::Nil;
     for i in v.iter().rev() {
@@ -139,6 +144,7 @@ fn lisp_set(ctx: &mut dyn Scope, body: &LispValue) -> LispValue {
 
 
 pub fn lisp_load_lisp(ctx: &mut LispContext){
+    ctx.set_global_str("println", LispValue::NativeFunction(NativeFunc::Function1(lisp_print)));
     ctx.set_global_str("cons", LispValue::from_2(lisp_cons));
     ctx.set_global_str("car", LispValue::from_1r(car));
     ctx.set_global_str("cdr", LispValue::from_1r(cdr));

@@ -48,12 +48,12 @@ impl Clone for LispValue{
              LispValue::Rational(r) => LispValue::Rational(*r),
              LispValue::Symbol(s) => LispValue::Symbol(*s),
              LispValue::NativeFunction(f) => LispValue::NativeFunction(f.clone()),
-             LispValue::Macro(m) => LispValue::Macro(m.clone()),
-             
+             LispValue::Macro(m) => LispValue::Macro(m.clone()), 
              _ =>todo!()  
          }
   }
 }
+
 impl LispValue {
     pub fn from_2(item:fn(LispValue, LispValue) -> LispValue) -> Self {
         LispValue::NativeFunction(NativeFunc::Function2(item))
@@ -341,10 +341,7 @@ impl<'a> LispContext{
 
 
 
-fn lisp_print(v: LispValue) -> LispValue{
-    println!("{}", v);
-    return v;
-}
+
 
 
 fn eq(a: &LispValue, b: &LispValue ) -> bool {
@@ -456,7 +453,6 @@ fn lisp_eval_str(ctx: &mut LispContext, code: &str) -> LispValue{
 fn main() {
     let mut ctx = Box::new(LispContext::new());
             
-    ctx.set_global_str("println", LispValue::NativeFunction(NativeFunc::Function1(lisp_print)));
     
     lisp_load_lisp(&mut ctx);
     lisp_math_load(&mut ctx);
