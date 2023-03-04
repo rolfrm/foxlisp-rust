@@ -20,6 +20,9 @@ pub fn car(lisp: &LispValue) -> &LispValue{
     if let LispValue::Cons(l) = lisp {
         return &l.0;
     }
+    if let LispValue::Consr(l) = lisp {
+        return &l.0;
+    }
     return &LispValue::Nil;
 }
 
@@ -32,6 +35,9 @@ pub fn car2(lisp: LispValue) -> LispValue{
 
 pub fn cdr(lisp: &LispValue) -> &LispValue{
     if let LispValue::Cons(l) = lisp {
+        return &l.1;
+    }
+    if let LispValue::Consr(l) = lisp {
         return &l.1;
     }
     return &LispValue::Nil;
@@ -64,11 +70,10 @@ fn lisp_conss(v: Vec<LispValue>) -> LispValue {
 }
 
 fn lisp_cons(a: LispValue, b: LispValue) -> LispValue{
-    println!("CONS: {} {}", a, b);
     LispValue::Cons(Box::new((a, b)))
 }
 
-fn is_nil(a: &LispValue) -> bool {
+pub fn is_nil(a: &LispValue) -> bool {
     return eq(a, &LispValue::Nil);
 }
 
@@ -139,6 +144,7 @@ pub fn lisp_load_lisp(ctx: &mut LispContext){
     ctx.set_global_str("cdr", LispValue::from_1r(cdr));
     ctx.set_global_str("cadr", LispValue::from_1r(cadr));
     ctx.set_global_str("cddr", LispValue::from_1r(cddr));
+    ctx.set_global_str("caddr", LispValue::from_1r(caddr));
     ctx.set_global_str("cdddr", LispValue::from_1r(cdddr));
     ctx.set_global_str("cddddr", LispValue::from_1r(cddddr));
     ctx.set_global_str("eq", LispValue::from_2r(lisp_eq));
