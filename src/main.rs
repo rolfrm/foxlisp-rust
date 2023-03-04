@@ -202,12 +202,11 @@ impl fmt::Display for LispValue {
                 write!(f, "(").unwrap();
                 let mut first = true;
 
-                while !is_nil(it)  {
+                while is_cons(it)  {
                     if first {
                         first = false
                     }else{
                         write!(f, " ").unwrap();
-                        
                     }
                     write!(f, "{}", car(it)).unwrap();
                     it = cdr(it);

@@ -82,6 +82,14 @@ pub fn is_nil(a: &LispValue) -> bool {
     return eq(a, &LispValue::Nil);
 }
 
+pub fn is_cons(a: &LispValue) -> bool {
+    match a {
+        LispValue::Cons(_) => true,
+        LispValue::Consr(_) => true,
+        _ => false
+    }
+}
+
 fn lisp_loop(ctx: &mut dyn Scope, body: &LispValue) -> LispValue {
     let cond = car(body);
     let body = cdr(body);
