@@ -90,7 +90,7 @@ pub fn is_cons(a: &LispValue) -> bool {
     }
 }
 
-fn lisp_loop(ctx: &mut dyn Scope, body: &LispValue) -> LispValue {
+fn lisp_loop(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let cond = car(body);
     let body = cdr(body);
     while !is_nil(&lisp_eval(ctx, cond)) {
@@ -103,7 +103,7 @@ fn lisp_loop(ctx: &mut dyn Scope, body: &LispValue) -> LispValue {
     return LispValue::Nil;
 }
 
-fn lisp_let1(ctx: &mut dyn Scope, args: &LispValue, body: &LispValue) -> LispValue {
+fn lisp_let1<'a>(ctx: &mut Stack, args: &LispValue, body: &LispValue) -> LispValue {
     let arg = car(args);
     let mut arga = [LispValue::Nil];
     let mut ids = [0];
@@ -111,16 +111,19 @@ fn lisp_let1(ctx: &mut dyn Scope, args: &LispValue, body: &LispValue) -> LispVal
         ids[0] = *id;
         let v = lisp_eval(ctx, cadr(arg));
         arga[0] = v;
-        let mut scope = LispScope {
+        let scope = LispScope {
             id: &ids,
             values: &mut arga,
-            parent: ctx,
+            parent: &ctx.local_scope,
         };
+        
         let mut it = body;
         let mut result = LispValue::Nil;
 
+        
+        let mut stack2 = Stack{global_scope: ctx.global_scope, local_scope: Some(Box::new(scope))};
         while !is_nil(it) {
-            result = lisp_eval(&mut scope, car(it));
+            result = lisp_eval(&mut stack2, car(it));
             it = cdr(it);
         }
         return result;
@@ -128,20 +131,17 @@ fn lisp_let1(ctx: &mut dyn Scope, args: &LispValue, body: &LispValue) -> LispVal
     return LispValue::Nil;
 }
 
-fn lisp_let(ctx: &mut dyn Scope, body: &LispValue) -> LispValue {
+fn lisp_let(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let let_vars = car(body);
     let let_body = cdr(body);
-    let mut result = LispValue::Nil;
     if cons_count(let_vars) == 1 {
         return lisp_let1(ctx, let_vars, let_body);
     }
-    let values: Vec<(i64, &LispValue)> = Vec::new();
-    // fill the values
-
-    return result;
+    
+    LispValue::Nil
 }
 
-fn lisp_set(ctx: &mut dyn Scope, body: &LispValue) -> LispValue {
+fn lisp_set(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let sym = car(body);
     let val = cadr(body);
     if let LispValue::Symbol(s) = sym {
@@ -153,7 +153,7 @@ fn lisp_set(ctx: &mut dyn Scope, body: &LispValue) -> LispValue {
     return LispValue::Nil;
 }
 
-fn lisp_if(ctx: &mut dyn Scope, body: &LispValue) -> LispValue {
+fn lisp_if(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let cond_clause = car(body);
     let if_clause = cadr(body);
     let else_clause = caddr(body);
