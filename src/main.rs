@@ -23,7 +23,6 @@ pub struct LispFunc {
     args_names: [i32],
 }
 
-//#[derive(Clone)]
 pub enum LispValue {
     Cons(Box<(LispValue, LispValue)>),
     Consr(Arc<(LispValue, LispValue)>),
@@ -38,6 +37,12 @@ pub enum LispValue {
     Macro(fn(&mut Stack, &LispValue) -> LispValue),
     LispFunction(Arc<LispFunc>),
 }
+impl Default for LispValue {
+    fn default() -> Self {
+        LispValue::Nil
+    }
+}
+
 impl Clone for LispValue {
     fn clone(&self) -> Self {
         match self {
@@ -264,22 +269,21 @@ pub struct LispScope<'a> {
     parent: &'a Option<Box<LispScope<'a>>>,
 }
 
-
 pub struct Stack<'a> {
     local_scope: Option<Box<LispScope<'a>>>,
-    global_scope: &'a mut LispContext
+    global_scope: &'a mut LispContext,
 }
 
 impl<'a> Stack<'a> {
     fn get_value(&self, symbol_name: i32) -> Option<&LispValue> {
-        if let Some(l) = &self.local_scope{
-            if let Some(r)  = l.get_value(symbol_name){
+        if let Some(l) = &self.local_scope {
+            if let Some(r) = l.get_value(symbol_name) {
                 return Some(r);
             }
         }
-        return self.global_scope.get_value(symbol_name)
+        return self.global_scope.get_value(symbol_name);
     }
-    
+
     fn set_value(&mut self, symbol_name: i32, value: &LispValue) {
         if let Some(l) = &mut self.local_scope {
             if l.set_value(symbol_name, value) {
@@ -290,19 +294,19 @@ impl<'a> Stack<'a> {
     }
 }
 
-impl<'a>  LispScope<'a> {
+impl<'a> LispScope<'a> {
     fn get_value(&self, symbol_name: i32) -> Option<&LispValue> {
         for i in 0..self.id.len() {
             if self.id[i] == symbol_name {
                 return Some(&self.values[i]);
             }
         }
-        
+
         if let Some(p) = &self.parent {
-            p.get_value(symbol_name)    
-        }else{
+            p.get_value(symbol_name)
+        } else {
             None
-        }        
+        }
     }
     fn set_value(&mut self, symbol_name: i32, value: &LispValue) -> bool {
         for i in 0..self.id.len() {
@@ -313,9 +317,8 @@ impl<'a>  LispScope<'a> {
         }
         return false;
         //if let Some(p) = &self.parent {
-        //    return p.set_value(symbol_name, value)    
+        //    return p.set_value(symbol_name, value)
         //}
-        
     }
 }
 
@@ -366,8 +369,8 @@ impl<'a> LispContext {
         let id = self.get_symbol_id(name);
         self.set_global(id, value);
     }
-    
-        fn get_value(&self, symbol_name: i32) -> Option<&LispValue> {
+
+    fn get_value(&self, symbol_name: i32) -> Option<&LispValue> {
         self.get_global(symbol_name)
     }
     fn set_value(&mut self, symbol_name: i32, value: &LispValue) {
@@ -448,12 +451,7 @@ fn lisp_invoke1r<'a>(
     return (fcn)(&a1).clone();
 }
 
-fn lisp_eval_lisp_function<'a>(
-    ctx: &mut Stack,
-    func: &LispFunc,
-    v: &'a LispValue,
-) -> LispValue {
-    
+fn lisp_eval_lisp_function<'a>(ctx: &mut Stack, func: &LispFunc, v: &'a LispValue) -> LispValue {
     LispValue::Nil
 }
 
@@ -523,12 +521,14 @@ fn main() {
     assert!(eq(&ctx.get_symbol("asd"), cadddr(&out)));
     assert!(!eq(&ctx.get_symbol("asdd"), cadddr(&out)));
     let code2 = parse_string(&mut ctx, "(cdr (println  (cons (+ 1 2 3.14) (cons (* 1000 (+ 1234 9999 4321 1111 (- 1000 1000 1000))) 1))))");
-    let mut stk = Stack{global_scope: &mut ctx, local_scope: None};
-    
+    let mut stk = Stack {
+        global_scope: &mut ctx,
+        local_scope: None,
+    };
+
     let result = lisp_eval(&mut stk, &code2);
     let result2 = lisp_eval_str(&mut stk, "(println (list 1 2 3))");
 
-    
     println!("Code2: {}", result);
 
     lisp_eval_str(&mut stk, "(let ((x 10)) (println (list 1 2 3 x)))");
@@ -548,6 +548,10 @@ fn main() {
     lisp_eval_str(&mut stk, "(println (list 1 2 3 4 5 6 7 (cons 8 9)))");
     lisp_eval_str(&mut stk, "(println (if 1 2 3))");
     lisp_eval_str(&mut stk, "(println (if () 2 3))");
-    
-    lisp_eval_str(&mut stk, "(println (let ((a 1)) (let ((b 2)) (println (+ a b)))))");
+
+    lisp_eval_str(
+        &mut stk,
+        "(println (let ((a 1)) (let ((b 2)) (println (+ a b)))))",
+    );
+    lisp_eval_str(&mut stk, "(println (let ((a 2) (b 3) (c 5)) (* a b c)))");
 }

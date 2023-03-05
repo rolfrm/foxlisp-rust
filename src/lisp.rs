@@ -1,3 +1,5 @@
+use std::default;
+
 use crate::*;
 pub fn caddr(lisp: &LispValue) -> &LispValue {
     return car(cddr(lisp));
@@ -24,13 +26,6 @@ pub fn car(lisp: &LispValue) -> &LispValue {
         return &l.0;
     }
     return &LispValue::Nil;
-}
-
-pub fn car2(lisp: LispValue) -> LispValue {
-    if let LispValue::Cons(l) = lisp {
-        return l.0;
-    }
-    return LispValue::Nil;
 }
 
 pub fn cdr(lisp: &LispValue) -> &LispValue {
@@ -103,42 +98,54 @@ fn lisp_loop(ctx: &mut Stack, body: &LispValue) -> LispValue {
     return LispValue::Nil;
 }
 
-fn lisp_let1<'a>(ctx: &mut Stack, args: &LispValue, body: &LispValue) -> LispValue {
-    let arg = car(args);
-    let mut arga = [LispValue::Nil];
-    let mut ids = [0];
-    if let LispValue::Symbol(id) = car(arg) {
-        ids[0] = *id;
-        let v = lisp_eval(ctx, cadr(arg));
-        arga[0] = v;
-        let scope = LispScope {
-            id: &ids,
-            values: &mut arga,
-            parent: &ctx.local_scope,
-        };
-        
-        let mut it = body;
-        let mut result = LispValue::Nil;
-
-        
-        let mut stack2 = Stack{global_scope: ctx.global_scope, local_scope: Some(Box::new(scope))};
-        while !is_nil(it) {
-            result = lisp_eval(&mut stack2, car(it));
-            it = cdr(it);
+fn lisp_let_n<const N: usize>(ctx: &mut Stack, args: &LispValue, body: &LispValue) -> LispValue {
+    let mut arga = [0; N].map(|_| LispValue::Nil);
+    let mut ids: [i32; N] = [0; N];
+    let mut argit = args;
+    for i in 0..N {
+        let arg = car(argit);
+        if let LispValue::Symbol(id) = car(arg) {
+            ids[i] = *id;
+            let v = lisp_eval(ctx, cadr(arg));
+            arga[i] = v;
         }
-        return result;
+        argit = cdr(argit);
     }
-    return LispValue::Nil;
+    let scope = LispScope {
+        id: &ids,
+        values: &mut arga,
+        parent: &ctx.local_scope,
+    };
+
+    let mut it = body;
+    let mut result = LispValue::Nil;
+
+    let mut stack2 = Stack {
+        global_scope: ctx.global_scope,
+        local_scope: Some(Box::new(scope)),
+    };
+    while !is_nil(it) {
+        result = lisp_eval(&mut stack2, car(it));
+        it = cdr(it);
+    }
+    return result;
 }
 
 fn lisp_let(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let let_vars = car(body);
     let let_body = cdr(body);
-    if cons_count(let_vars) == 1 {
-        return lisp_let1(ctx, let_vars, let_body);
+    let cnt = cons_count(let_vars);
+    match cnt {
+        0 => return lisp_let_n::<1>(ctx, let_vars, let_body),
+        1 => return lisp_let_n::<1>(ctx, let_vars, let_body),
+        2 => return lisp_let_n::<2>(ctx, let_vars, let_body),
+        3 => return lisp_let_n::<3>(ctx, let_vars, let_body),
+        4 => return lisp_let_n::<4>(ctx, let_vars, let_body),
+        5 => return lisp_let_n::<5>(ctx, let_vars, let_body),
+        6 => return lisp_let_n::<6>(ctx, let_vars, let_body),
+        7 => return lisp_let_n::<7>(ctx, let_vars, let_body),
+        _ => todo!(),
     }
-    
-    LispValue::Nil
 }
 
 fn lisp_set(ctx: &mut Stack, body: &LispValue) -> LispValue {
