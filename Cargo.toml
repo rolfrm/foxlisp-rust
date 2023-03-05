@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 typed-index-collections = "3.1.0"
 num = "0.4"
+nohash-hasher = "0.2.0"

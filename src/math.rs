@@ -45,46 +45,46 @@ fn handler_underflow(lv: LispValue) -> LispValue {
     return lv;
 }
 
-fn apply_number_func(func: &NumericFunc, a: LispValue, b: LispValue) -> LispValue {
+fn apply_number_func(func: &NumericFunc, a: &LispValue, b: &LispValue) -> LispValue {
     if let LispValue::Integer(x) = a {
         if let LispValue::Integer(y) = b {
-            if let Some(x) = (func.f_int)(x, y) {
+            if let Some(x) = (func.f_int)(*x, *y) {
                 return LispValue::Integer(x);
             }
             return LispValue::BigInt((func.f_bigint)(
-                &BigInt::from_i64(x).unwrap(),
-                &BigInt::from_i64(y).unwrap(),
+                &BigInt::from_i64(*x).unwrap(),
+                &BigInt::from_i64(*y).unwrap(),
             ));
         }
         if let LispValue::Rational(y) = b {
-            return LispValue::Rational((func.f_f64)(x as f64, y));
+            return LispValue::Rational((func.f_f64)(*x as f64, *y));
         }
         if let LispValue::BigInt(y) = &b {
-            return handler_underflow(LispValue::BigInt((func.f_bigint)(&num::BigInt::from(x), y)));
+            return handler_underflow(LispValue::BigInt((func.f_bigint)(&num::BigInt::from(*x), y)));
         }
         if let LispValue::BigRational(y) = &b {
             return LispValue::BigRational((func.f_bigrational)(
-                &num::BigRational::from_i64(x).unwrap(),
+                &num::BigRational::from_i64(*x).unwrap(),
                 y,
             ));
         }
     }
     if let LispValue::Rational(x) = a {
         if let LispValue::Integer(y) = b {
-            return LispValue::Rational((func.f_f64)(x, y as f64));
+            return LispValue::Rational((func.f_f64)(*x, *y as f64));
         }
         if let LispValue::Rational(y) = b {
-            return LispValue::Rational((func.f_f64)(x, y));
+            return LispValue::Rational((func.f_f64)(*x, *y));
         }
         if let LispValue::BigInt(y) = &b {
             return LispValue::BigRational((func.f_bigrational)(
-                &num::BigRational::from_f64(x).unwrap(),
+                &num::BigRational::from_f64(*x).unwrap(),
                 &num::BigRational::from(y.clone()),
             ));
         }
         if let LispValue::BigRational(y) = &b {
             return LispValue::BigRational((func.f_bigrational)(
-                &num::BigRational::from_f64(x).unwrap(),
+                &num::BigRational::from_f64(*x).unwrap(),
                 y,
             ));
         }
@@ -93,13 +93,13 @@ fn apply_number_func(func: &NumericFunc, a: LispValue, b: LispValue) -> LispValu
         if let LispValue::Integer(y) = b {
             return LispValue::BigRational((func.f_bigrational)(
                 &BigRational::from(x.clone()),
-                &BigRational::from_i64(y).unwrap(),
+                &BigRational::from_i64(*y).unwrap(),
             ));
         }
         if let LispValue::Rational(y) = b {
             return LispValue::BigRational((func.f_bigrational)(
                 &BigRational::from(x.clone()),
-                &BigRational::from_f64(y).unwrap(),
+                &BigRational::from_f64(*y).unwrap(),
             ));
         }
         if let LispValue::BigInt(y) = &b {
@@ -117,13 +117,13 @@ fn apply_number_func(func: &NumericFunc, a: LispValue, b: LispValue) -> LispValu
         if let LispValue::Integer(y) = b {
             return LispValue::BigRational((func.f_bigrational)(
                 x,
-                &BigRational::from_i64(y).unwrap(),
+                &BigRational::from_i64(*y).unwrap(),
             ));
         }
         if let LispValue::Rational(y) = b {
             return LispValue::BigRational((func.f_bigrational)(
                 x,
-                &BigRational::from_f64(y).unwrap(),
+                &BigRational::from_f64(*y).unwrap(),
             ));
         }
         if let LispValue::BigInt(y) = &b {
@@ -141,8 +141,9 @@ fn lisp_apply_numbers(v: &Vec<LispValue>, func: &NumericFunc) -> LispValue {
     if let Some(firstv) = first {
         let mut acc = firstv.clone();
         for i in v.iter().skip(1) {
-            acc = apply_number_func(func, acc, i.clone());
+            acc = apply_number_func(func, &acc, i);
         }
+    //println!("{:#}", acc);
         return acc;
     }
     return LispValue::Nil;

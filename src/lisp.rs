@@ -88,14 +88,15 @@ pub fn is_cons(a: &LispValue) -> bool {
 fn lisp_loop(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let cond = car(body);
     let body = cdr(body);
+    let mut result = LispValue::Nil;
     while !is_nil(&lisp_eval(ctx, cond)) {
         let mut it = body;
         while !is_nil(it) {
-            lisp_eval(ctx, car(it));
+            result = lisp_eval(ctx, car(it));
             it = cdr(it);
         }
     }
-    return LispValue::Nil;
+    return result;
 }
 
 fn lisp_let_n<const N: usize>(ctx: &mut Stack, args: &LispValue, body: &LispValue) -> LispValue {

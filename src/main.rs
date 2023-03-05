@@ -6,6 +6,7 @@ mod lisp;
 use lisp::*;
 mod math;
 use math::*;
+use nohash_hasher;
 
 mod parser;
 use parser::*;
@@ -260,7 +261,7 @@ pub struct LispContext {
     symbols: HashMap<String, i32>,
     id_gen: i32,
     globals: Vec<LispValue>,
-    global_names: HashMap<i32, usize>,
+    global_names: HashMap<i32, usize, nohash_hasher::BuildNoHashHasher<i32>>,
 }
 
 pub struct LispScope<'a> {
@@ -316,9 +317,6 @@ impl<'a> LispScope<'a> {
             }
         }
         return false;
-        //if let Some(p) = &self.parent {
-        //    return p.set_value(symbol_name, value)
-        //}
     }
 }
 
@@ -328,7 +326,7 @@ impl<'a> LispContext {
             symbols: HashMap::new(),
             id_gen: 1,
             globals: Vec::new(),
-            global_names: HashMap::new(),
+            global_names: HashMap::with_capacity_and_hasher(8, nohash_hasher::BuildNoHashHasher::default()),
         };
     }
 
@@ -401,7 +399,7 @@ fn lisp_invoken<'a>(
     argsl: &'a LispValue,
     fcn: fn(Vec<LispValue>) -> LispValue,
 ) -> LispValue {
-    let mut args: Vec<LispValue> = Vec::new();
+    let mut args: Vec<LispValue> = Vec::with_capacity(cons_count(argsl) as usize);
     let mut it = argsl;
     while let LispValue::Cons(c) = it {
         let r = lisp_eval(ctx, &c.0);
@@ -459,8 +457,9 @@ fn lisp_eval<'a>(ctx: &mut Stack, v: &'a LispValue) -> LispValue {
     match v {
         LispValue::Cons(_) | LispValue::Consr(_) => {
             let value = lisp_eval(ctx, car(v));
+            match value {
 
-            if let LispValue::NativeFunction(n) = value {
+            LispValue::NativeFunction(n) => {
                 match n {
                     NativeFunc::Function1(f) => return lisp_invoke1(ctx, cdr(v), f),
                     NativeFunc::Function2(f) => return lisp_invoke2(ctx, cdr(v), f),
@@ -474,17 +473,17 @@ fn lisp_eval<'a>(ctx: &mut Stack, v: &'a LispValue) -> LispValue {
                         return lisp_invoken(ctx, cdr(v), f);
                     }
                 }
-            }
+            },
 
-            if let LispValue::Macro(mf) = value {
+            LispValue::Macro(mf) => {
                 return (mf)(ctx, cdr(v));
-            }
-            if let LispValue::LispFunction(lf) = value {
+            },
+            LispValue::LispFunction(lf) => {
                 return lisp_eval_lisp_function(ctx, &lf, cdr(v));
-            }
-
-            lisp_raise_error(ctx, "no such function!".into());
-
+            },
+            
+            _ => lisp_raise_error(ctx, "no such function!".into())
+    }
             return LispValue::Nil;
         }
         LispValue::Symbol(id) => {
@@ -554,4 +553,10 @@ fn main() {
         "(println (let ((a 1)) (let ((b 2)) (println (+ a b)))))",
     );
     lisp_eval_str(&mut stk, "(println (let ((a 2) (b 3) (c 5)) (* a b c)))");
+    println!("go");
+    lisp_eval_str(
+        &mut stk,
+        "(println (let ((x 10000)) (loop (not (eq x 0)) (set! x (- x 1))) x))",
+    );
+    
 }
