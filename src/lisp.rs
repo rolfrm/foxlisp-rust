@@ -9,14 +9,14 @@ pub fn lisp_eq<'a>(a: &'a LispValue, b: &'a LispValue) -> &'a LispValue {
     }
     return &LispValue::Nil;
 }
-pub fn lisp_not(a: &LispValue) -> & LispValue {
+pub fn lisp_not(a: &LispValue) -> &LispValue {
     if eq(a, &LispValue::Nil) {
         return &LispValue::Integer(1);
     }
     return &LispValue::Nil;
 }
 
-pub fn car(lisp: &LispValue) -> &LispValue{
+pub fn car(lisp: &LispValue) -> &LispValue {
     if let LispValue::Cons(l) = lisp {
         return &l.0;
     }
@@ -26,14 +26,14 @@ pub fn car(lisp: &LispValue) -> &LispValue{
     return &LispValue::Nil;
 }
 
-pub fn car2(lisp: LispValue) -> LispValue{
+pub fn car2(lisp: LispValue) -> LispValue {
     if let LispValue::Cons(l) = lisp {
         return l.0;
     }
     return LispValue::Nil;
 }
 
-pub fn cdr(lisp: &LispValue) -> &LispValue{
+pub fn cdr(lisp: &LispValue) -> &LispValue {
     if let LispValue::Cons(l) = lisp {
         return &l.1;
     }
@@ -61,7 +61,7 @@ pub fn cadddr(lisp: &LispValue) -> &LispValue {
     return car(cdddr(lisp));
 }
 
-fn lisp_print(v: LispValue) -> LispValue{
+fn lisp_print(v: LispValue) -> LispValue {
     println!("{}", v);
     return v;
 }
@@ -74,7 +74,7 @@ fn lisp_conss(v: Vec<LispValue>) -> LispValue {
     return v0;
 }
 
-fn lisp_cons(a: LispValue, b: LispValue) -> LispValue{
+fn lisp_cons(a: LispValue, b: LispValue) -> LispValue {
     LispValue::Cons(Box::new((a, b)))
 }
 
@@ -86,14 +86,14 @@ pub fn is_cons(a: &LispValue) -> bool {
     match a {
         LispValue::Cons(_) => true,
         LispValue::Consr(_) => true,
-        _ => false
+        _ => false,
     }
 }
 
 fn lisp_loop(ctx: &mut dyn Scope, body: &LispValue) -> LispValue {
     let cond = car(body);
     let body = cdr(body);
-    while !is_nil(&lisp_eval(ctx, cond)){
+    while !is_nil(&lisp_eval(ctx, cond)) {
         let mut it = body;
         while !is_nil(it) {
             lisp_eval(ctx, car(it));
@@ -103,7 +103,7 @@ fn lisp_loop(ctx: &mut dyn Scope, body: &LispValue) -> LispValue {
     return LispValue::Nil;
 }
 
-fn lisp_let1(ctx: &mut dyn Scope, args: &LispValue, body: &LispValue) -> LispValue{
+fn lisp_let1(ctx: &mut dyn Scope, args: &LispValue, body: &LispValue) -> LispValue {
     let arg = car(args);
     let mut arga = [LispValue::Nil];
     let mut ids = [0];
@@ -111,10 +111,14 @@ fn lisp_let1(ctx: &mut dyn Scope, args: &LispValue, body: &LispValue) -> LispVal
         ids[0] = *id;
         let v = lisp_eval(ctx, cadr(arg));
         arga[0] = v;
-        let mut scope = LispScope { id: &ids, values: &mut arga, parent: ctx };
+        let mut scope = LispScope {
+            id: &ids,
+            values: &mut arga,
+            parent: ctx,
+        };
         let mut it = body;
         let mut result = LispValue::Nil;
-        
+
         while !is_nil(it) {
             result = lisp_eval(&mut scope, car(it));
             it = cdr(it);
@@ -128,12 +132,12 @@ fn lisp_let(ctx: &mut dyn Scope, body: &LispValue) -> LispValue {
     let let_vars = car(body);
     let let_body = cdr(body);
     let mut result = LispValue::Nil;
-    if cons_count(let_vars) == 1 {    
+    if cons_count(let_vars) == 1 {
         return lisp_let1(ctx, let_vars, let_body);
     }
-    let values : Vec<(i64, &LispValue)> = Vec::new();
+    let values: Vec<(i64, &LispValue)> = Vec::new();
     // fill the values
-    
+
     return result;
 }
 
@@ -157,12 +161,14 @@ fn lisp_if(ctx: &mut dyn Scope, body: &LispValue) -> LispValue {
     if is_nil(&val) {
         return lisp_eval(ctx, if_clause);
     }
-    return lisp_eval(ctx, else_clause);    
+    return lisp_eval(ctx, else_clause);
 }
 
-
-pub fn lisp_load_lisp(ctx: &mut LispContext){
-    ctx.set_global_str("println", LispValue::NativeFunction(NativeFunc::Function1(lisp_print)));
+pub fn lisp_load_lisp(ctx: &mut LispContext) {
+    ctx.set_global_str(
+        "println",
+        LispValue::NativeFunction(NativeFunc::Function1(lisp_print)),
+    );
     ctx.set_global_str("cons", LispValue::from_2(lisp_cons));
     ctx.set_global_str("car", LispValue::from_1r(car));
     ctx.set_global_str("cdr", LispValue::from_1r(cdr));
