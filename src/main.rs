@@ -18,6 +18,10 @@ pub enum NativeFunc{
     Function2r(for<'a> fn(&'a LispValue, &'a LispValue) -> &'a LispValue),
     FunctionN(fn(Vec<LispValue>) -> LispValue)
 }
+pub struct LispFunc{
+    code: Box<LispValue>,
+    args_names: [i32] 
+}
 
 //#[derive(Clone)]
 pub enum LispValue
@@ -32,7 +36,9 @@ pub enum LispValue
     BigInt(num::BigInt),
     BigRational(num::BigRational),
     NativeFunction(NativeFunc),
-    Macro(fn(&mut dyn Scope, &LispValue) -> LispValue)
+    Macro(fn(&mut dyn Scope, &LispValue) -> LispValue),
+    LispFunction(Arc<LispFunc>)
+    
 }
 impl Clone for LispValue{
     fn clone(&self) -> Self {
@@ -48,8 +54,9 @@ impl Clone for LispValue{
              LispValue::Rational(r) => LispValue::Rational(*r),
              LispValue::Symbol(s) => LispValue::Symbol(*s),
              LispValue::NativeFunction(f) => LispValue::NativeFunction(f.clone()),
-             LispValue::Macro(m) => LispValue::Macro(m.clone()), 
-             _ =>todo!()  
+             LispValue::Macro(m) => LispValue::Macro(m.clone()),
+             LispValue::LispFunction(f) => LispValue::LispFunction(f.clone())
+              
          }
   }
 }
@@ -235,8 +242,11 @@ impl fmt::Display for LispValue {
             LispValue::Rational(x) => {write!(f, "{0}", x)}
             LispValue::Integer(x) => {write!(f, "{0}", x)}
             LispValue::BigInt(x) => {write!(f, "{0}", x)}
-            LispValue::BigRational(x) => {write!(f, "{0}", x)}
-            _ => todo!()
+            LispValue::BigRational(x) => write!(f, "{0}", x),
+            LispValue::NativeFunction(_) => write!(f, "Native Function"),
+            LispValue::Macro(_) => write!(f, "Macro"),
+            LispValue::LispFunction(_) => write!(f, "LispFunction")
+            
         }
     
     }
@@ -245,6 +255,7 @@ impl fmt::Display for LispValue {
 pub trait Scope{
     fn get_value(&self, symbol: i32) -> Option<&LispValue>;
     fn set_value(&mut self, symbol_name: i32, value: &LispValue);
+    fn get_parent(&mut self) -> Option<&mut dyn Scope>;
 }
 
 pub struct LispContext{
@@ -267,6 +278,9 @@ impl Scope for LispContext{
     fn set_value(&mut self, symbol_name: i32, value: &LispValue) {
         self.set_global(symbol_name, value.clone())
     }
+    fn get_parent(&mut self) -> Option<&mut dyn Scope> {
+        None
+    }
 }
 
 impl<'a> Scope for LispScope<'a>{
@@ -286,6 +300,9 @@ impl<'a> Scope for LispScope<'a>{
             }
         }
         self.parent.set_value(symbol_name, value)
+    }
+    fn get_parent(&mut self) -> Option<&mut dyn Scope>{
+        Some(self.parent)
     }
 }
 
@@ -398,6 +415,15 @@ fn lisp_invoke1r<'a>(ctx :&mut dyn Scope, v: &'a LispValue, fcn : fn(&LispValue)
     return (fcn)(&a1).clone();
 }
 
+fn lisp_eval_lisp_function<'a>(ctx: &mut dyn Scope, func: &LispFunc, v: &'a LispValue) -> LispValue{
+    let mut ctx2= ctx;
+    while let Some(p) = ctx2.get_parent() {
+        ctx2 = p
+    }
+    
+    LispValue::Nil
+}
+
 fn lisp_eval<'a>(ctx :&mut dyn Scope , v: &'a LispValue) -> LispValue{
     match v {
         LispValue::Cons (_) | LispValue::Consr(_) =>{
@@ -422,6 +448,9 @@ fn lisp_eval<'a>(ctx :&mut dyn Scope , v: &'a LispValue) -> LispValue{
                         
             if let LispValue::Macro(mf ) = value {
                 return (mf)(ctx, cdr(v));
+            }
+            if let LispValue::LispFunction(lf) = value {
+                return lisp_eval_lisp_function(ctx, &lf, cdr(v));
             }
                     
                 
@@ -479,6 +508,8 @@ fn main() {
     lisp_eval_str(&mut ctx, "(println (* (big-rational 10000) 10000 10000 10000 100000 10000000 100000 1000000 100000 10000))");
     lisp_eval_str(&mut ctx, "(println (car (println (cdr (cdr (list 1 2 3 4 5 6 7 8))))))");
     lisp_eval_str(&mut ctx, "(println (list 1 2 3 4 5 6 7 (cons 8 9)))");
+    lisp_eval_str(&mut ctx, "(println (if 1 2 3))");
+    lisp_eval_str(&mut ctx, "(println (if () 2 3))");
 
 
 }

@@ -147,7 +147,17 @@ fn lisp_set(ctx: &mut dyn Scope, body: &LispValue) -> LispValue {
     }
     lisp_raise_error(ctx, LispValue::Integer(5));
     return LispValue::Nil;
-    
+}
+
+fn lisp_if(ctx: &mut dyn Scope, body: &LispValue) -> LispValue {
+    let cond_clause = car(body);
+    let if_clause = cadr(body);
+    let else_clause = caddr(body);
+    let val = lisp_eval(ctx, cond_clause);
+    if is_nil(&val) {
+        return lisp_eval(ctx, if_clause);
+    }
+    return lisp_eval(ctx, else_clause);    
 }
 
 
@@ -167,4 +177,5 @@ pub fn lisp_load_lisp(ctx: &mut LispContext){
     ctx.set_global_str("loop", LispValue::from_macro(lisp_loop));
     ctx.set_global_str("let", LispValue::from_macro(lisp_let));
     ctx.set_global_str("set!", LispValue::from_macro(lisp_set));
+    ctx.set_global_str("if", LispValue::from_macro(lisp_if));
 }
