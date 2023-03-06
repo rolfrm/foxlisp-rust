@@ -37,6 +37,7 @@ static DIV_OP: NumericFunc = NumericFunc {
 };
 
 fn handler_underflow(lv: LispValue) -> LispValue {
+    
     if let LispValue::BigInt(v) = &lv {
         if let Some(v2) = v.to_i64() {
             return LispValue::Integer(v2);
