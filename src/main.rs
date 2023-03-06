@@ -1,12 +1,14 @@
 use num::{self};
 use std::collections::HashMap;
-use std::fmt::{self, Pointer};
+use std::env;
+use std::fmt::{self};
 use std::sync::Arc;
 mod lisp;
 use lisp::*;
 mod math;
 use math::*;
 use nohash_hasher;
+use std::fs;
 
 mod parser;
 use parser::*;
@@ -547,6 +549,25 @@ fn lisp_eval_str(ctx: &mut Stack, code: &str) -> LispValue {
     let code2 = parse_string(ctx.global_scope, code);
     return lisp_eval(ctx, &code2);
 }
+fn lisp_load_str(ctx: &mut Stack, code: &str){
+    let mut bytes = code.as_bytes();
+    while let Some(c) = parse_bytes(ctx.global_scope, &mut bytes){
+        lisp_eval(ctx, &c);
+    }
+}
+
+fn lisp_eval_file(ctx: &mut Stack, code: &str) {
+     let str = fs::read_to_string(code);
+     match str {
+         Ok(r) => {
+             lisp_load_str(ctx, r.as_str());
+             
+         },
+         Err(e) => {
+             lisp_raise_error(ctx, LispValue::String("eerr".to_string()));
+         }
+     }
+}
 
 fn main() {
     let mut ctx = Box::new(LispContext::new());
@@ -610,6 +631,9 @@ fn main() {
     );
     lisp_eval_str(&mut stk,
         "(println (print2 123))");
-    
+    let args: Vec<String> = env::args().collect();
+    for arg in args.iter().skip(1) {
+        lisp_eval_file(&mut stk, arg.as_str());
+    }
     
 }

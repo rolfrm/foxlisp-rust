@@ -2,6 +2,9 @@ use crate::*;
 
 fn parse_integer<'a>(code0: &'a [u8], val: &mut i64) -> Option<&'a [u8]> {
     *val = 0;
+    if code0.len() == 0 {
+        return None;
+    }
     let mut code = code0;
     while code.len() > 0 && code[0] >= b'0' && code[0] <= b'9' {
         *val = *val * 10;
@@ -135,7 +138,16 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
 
 pub fn parse_string(ctx: &mut LispContext, code: &str) -> LispValue {
     let mut c = code.as_bytes();
+    return parse_bytes(ctx, &mut c).unwrap();
+}
+
+pub fn parse_bytes(ctx: &mut LispContext, code: &mut &[u8]) -> Option<LispValue> {
     let mut v = LispValue::Nil;
-    parse(ctx, c, &mut v);
-    return v;
+    
+    if let Some(c3) = parse(ctx, code, &mut v){
+        *code = c3;
+        Some(v)
+    }else{
+       None
+    }
 }
