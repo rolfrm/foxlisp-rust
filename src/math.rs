@@ -143,7 +143,6 @@ fn lisp_apply_numbers(v: &Vec<LispValue>, func: &NumericFunc) -> LispValue {
         for i in v.iter().skip(1) {
             acc = apply_number_func(func, &acc, i);
         }
-    //println!("{:#}", acc);
         return acc;
     }
     return LispValue::Nil;

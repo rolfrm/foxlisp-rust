@@ -172,6 +172,32 @@ fn lisp_if(ctx: &mut Stack, body: &LispValue) -> LispValue {
     return lisp_eval(ctx, else_clause);
 }
 
+fn lisp_defun(ctx: &mut Stack, body: &LispValue) -> LispValue{
+    let name = car(body);
+    let args = cadr(body);
+    let code = cddr(body);
+    let mut arg_names = Vec::new();
+    let mut it = args;
+    while !is_nil(it) {
+        if let LispValue::Symbol(id) = car(it) {
+            arg_names.push(*id);
+        }else{
+            panic!("error");
+        }
+        it = cdr(it);
+    }
+    
+    let f = LispFunc {code: Box::new(code.clone()), args_names: arg_names};
+    if let LispValue::Symbol(name) = name{
+        
+        ctx.global_scope.set_global(*name, LispValue::LispFunction(Arc::new(f)));    
+    }else{
+        panic!("Not a symbol");
+    }
+    return LispValue::Nil;
+    
+}
+
 pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str(
         "println",
@@ -192,4 +218,6 @@ pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str("let", LispValue::from_macro(lisp_let));
     ctx.set_global_str("set!", LispValue::from_macro(lisp_set));
     ctx.set_global_str("if", LispValue::from_macro(lisp_if));
+    ctx.set_global_str("defun", LispValue::from_macro(lisp_defun));
+
 }
