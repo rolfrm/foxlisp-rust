@@ -61,7 +61,12 @@ fn parse_symbol<'a>(
     let mut code = code0;
     let mut len = 0;
 
-    while code.len() > 0 && code[0] != b')' && code[0] != b'(' && code[0] != b' ' && code[0] != b'\n' {
+    while code.len() > 0
+        && code[0] != b')'
+        && code[0] != b'('
+        && code[0] != b' '
+        && code[0] != b'\n'
+    {
         code = &code[1..];
         len += 1;
     }
@@ -143,11 +148,11 @@ pub fn parse_string(ctx: &mut LispContext, code: &str) -> LispValue {
 
 pub fn parse_bytes(ctx: &mut LispContext, code: &mut &[u8]) -> Option<LispValue> {
     let mut v = LispValue::Nil;
-    
-    if let Some(c3) = parse(ctx, code, &mut v){
+
+    if let Some(c3) = parse(ctx, code, &mut v) {
         *code = c3;
         Some(v)
-    }else{
-       None
+    } else {
+        None
     }
 }

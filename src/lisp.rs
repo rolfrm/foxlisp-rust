@@ -19,7 +19,6 @@ pub fn lisp_equals<'a>(a: &'a LispValue, b: &'a LispValue) -> &'a LispValue {
     return &LispValue::Nil;
 }
 
-
 pub fn lisp_not(a: &LispValue) -> &LispValue {
     if eq(a, &LispValue::Nil) {
         return &LispValue::Integer(1);
@@ -31,7 +30,7 @@ pub fn car(lisp: &LispValue) -> &LispValue {
     match lisp {
         LispValue::Cons(c) => &c.0,
         LispValue::Consr(c) => &c.0,
-        _ => &LispValue::Nil
+        _ => &LispValue::Nil,
     }
 }
 
@@ -39,7 +38,7 @@ pub fn cdr(lisp: &LispValue) -> &LispValue {
     match lisp {
         LispValue::Cons(c) => &c.1,
         LispValue::Consr(c) => &c.1,
-        _ => &LispValue::Nil
+        _ => &LispValue::Nil,
     }
 }
 pub fn cadr(lisp: &LispValue) -> &LispValue {
@@ -81,7 +80,7 @@ fn lisp_cons(a: LispValue, b: LispValue) -> LispValue {
 pub fn is_nil(a: &LispValue) -> bool {
     match a {
         &LispValue::Nil => true,
-        _ => false
+        _ => false,
     }
 }
 
@@ -107,7 +106,7 @@ fn lisp_loop(ctx: &mut Stack, body: &LispValue) -> LispValue {
     return result;
 }
 
-fn lisp_progn(ctx: &mut Stack, body: &LispValue) -> LispValue{
+fn lisp_progn(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let mut it = body;
     let mut result = LispValue::Nil;
 
@@ -141,7 +140,7 @@ fn lisp_let_n<const N: usize>(ctx: &mut Stack, args: &LispValue, body: &LispValu
     let mut result = LispValue::Nil;
 
     let mut stack2 = Stack::new_local(ctx.global_scope, scope);
-    
+
     while !is_nil(it) {
         result = lisp_eval(&mut stack2, car(it));
         it = cdr(it);
@@ -186,13 +185,12 @@ fn lisp_if(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let val = lisp_eval(ctx, cond_clause);
     if !is_nil(&val) {
         lisp_eval(ctx, if_clause)
-    }else{
-        lisp_eval(ctx, else_clause)    
+    } else {
+        lisp_eval(ctx, else_clause)
     }
-    
 }
 
-fn lisp_defun(ctx: &mut Stack, body: &LispValue) -> LispValue{
+fn lisp_defun(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let name = car(body);
     let args = cadr(body);
     let code = cddr(body);
@@ -201,24 +199,26 @@ fn lisp_defun(ctx: &mut Stack, body: &LispValue) -> LispValue{
     while !is_nil(it) {
         if let LispValue::Symbol(id) = car(it) {
             arg_names.push(*id);
-        }else{
+        } else {
             panic!("error");
         }
         it = cdr(it);
     }
-    
-    let f = LispFunc {code: Box::new(code.clone()), args_names: arg_names};
-    if let LispValue::Symbol(name) = name{
-        
-        ctx.global_scope.set_global(*name, LispValue::LispFunction(Arc::new(f)));    
-    }else{
+
+    let f = LispFunc {
+        code: Box::new(code.clone()),
+        args_names: arg_names,
+    };
+    if let LispValue::Symbol(name) = name {
+        ctx.global_scope
+            .set_global(*name, LispValue::LispFunction(Arc::new(f)));
+    } else {
         panic!("Not a symbol");
     }
     return LispValue::Nil;
-    
 }
 
-fn lisp_defvar(ctx: &mut Stack, body: &LispValue) -> LispValue{
+fn lisp_defvar(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let name = car(body);
     let args = cadr(body);
     let value = lisp_eval(ctx, args);
@@ -228,14 +228,14 @@ fn lisp_defvar(ctx: &mut Stack, body: &LispValue) -> LispValue{
     LispValue::Nil
 }
 
-fn lisp_quote(ctx: &mut Stack, body: &LispValue) -> LispValue{
+fn lisp_quote(ctx: &mut Stack, body: &LispValue) -> LispValue {
     return car(body).clone();
 }
 
 fn lisp_raise(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let error = car(body);
     let err_val = lisp_eval(ctx, error);
-    lisp_raise_error(ctx,err_val );
+    lisp_raise_error(ctx, err_val);
     return LispValue::Nil;
 }
 
@@ -243,13 +243,13 @@ fn lisp_load(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let path = car(body);
     if let LispValue::String(path) = path {
         lisp_eval_file(ctx, path);
-    }else{
+    } else {
         lisp_raise_error(ctx, LispValue::from("not a file"));
     }
     return LispValue::Nil;
 }
 
-fn lisp_eval_value(ctx: &mut Stack, body: &LispValue) -> LispValue{
+fn lisp_eval_value(ctx: &mut Stack, body: &LispValue) -> LispValue {
     lisp_eval(ctx, car(body))
 }
 
@@ -282,9 +282,12 @@ pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str("progn", LispValue::from_macro(lisp_progn));
     ctx.set_global_str("eval", LispValue::from_macro(lisp_eval_value));
     let mut stack = Stack::new_root(ctx);
-    
-    lisp_load_str(&mut stack, "
+
+    lisp_load_str(
+        &mut stack,
+        "
         (defun assert (x) (if x 1 (raise (quote (assert failed)))))
         
-        ");
+        ",
+    );
 }

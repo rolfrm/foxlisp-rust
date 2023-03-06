@@ -37,7 +37,6 @@ static DIV_OP: NumericFunc = NumericFunc {
 };
 
 fn handler_underflow(lv: LispValue) -> LispValue {
-    
     if let LispValue::BigInt(v) = &lv {
         if let Some(v2) = v.to_i64() {
             return LispValue::Integer(v2);
@@ -61,12 +60,15 @@ fn apply_number_func(func: &NumericFunc, a: &LispValue, b: &LispValue) -> LispVa
             return LispValue::Rational((func.f_f64)(*x as f64, *y));
         }
         if let LispValue::BigInt(y) = &b {
-            return handler_underflow(LispValue::BigInt((func.f_bigint)(&num::BigInt::from(*x), y)));
+            return handler_underflow(LispValue::BigInt((func.f_bigint)(
+                &num::BigInt::from(*x),
+                y,
+            )));
         }
         if let LispValue::BigRational(y) = &b {
             return LispValue::BigRational((func.f_bigrational)(
                 &num::BigRational::from_i64(*x).unwrap(),
-                y
+                y,
             ));
         }
     }
@@ -139,19 +141,18 @@ fn apply_number_func(func: &NumericFunc, a: &LispValue, b: &LispValue) -> LispVa
 
 fn lisp_apply_numbers(v: &Vec<LispValue>, func: &NumericFunc) -> LispValue {
     let mut it = v.iter();
-    if let Some(firstv) = it.next(){
-        if let Some(nextv) = it.next(){
+    if let Some(firstv) = it.next() {
+        if let Some(nextv) = it.next() {
             let mut acc = apply_number_func(func, firstv, nextv);
             while let Some(itv) = it.next() {
                 acc = apply_number_func(func, &acc, itv);
             }
             return acc;
-        }
-        else{
+        } else {
             return firstv.clone();
         }
     }
-     LispValue::Nil
+    LispValue::Nil
 }
 
 fn lisp_add(v: Vec<LispValue>) -> LispValue {
