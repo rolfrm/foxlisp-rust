@@ -140,6 +140,71 @@ impl PartialEq for LispValue {
                 if let LispValue::Integer(v2) = other {
                     return v1 == v2;
                 }
+                return false;
+            }
+            LispValue::Symbol(v1) => {
+                if let LispValue::Symbol(v2) = other {
+                    return v1 == v2;
+                }
+                return false;
+            }
+            LispValue::BigInt(v1) => {
+                
+                if let LispValue::BigInt(v2) = other {
+                    return v1.eq(v2);
+                }
+                return false;
+            }
+            LispValue::BigRational(v1) => {
+                if let LispValue::BigRational(v2) = other {
+                    return v1.eq(v2);
+                }
+                return false;
+            }
+            _ => false,
+        }
+    }
+}
+
+impl LispValue {
+    fn equals(&self, other: &Self) -> bool {
+        match self {
+            LispValue::Cons(c) => {
+                if let LispValue::Cons(c2) = other {
+                    return c2 == c;
+                }
+                return false;
+            }
+            LispValue::Consr(ar) => {
+                if let LispValue::Consr(ar2) = other {
+                    return ar2 == ar;
+                }
+                return false;
+            }
+            LispValue::Nil => {
+                if let LispValue::Nil = other {
+                    return true;
+                }
+                return false;
+            }
+            LispValue::String(v1) => {
+                if let LispValue::String(v2) = other {
+                    return v1 == v2;
+                }
+                return false;
+            }
+            LispValue::Rational(v1) => {
+                if let LispValue::Rational(v2) = other {
+                    return v1 == v2;
+                }
+                
+                return false;
+            }
+            LispValue::Integer(v1) => {
+                
+                if let LispValue::Integer(v2) = other {
+                    return v1 == v2;
+                }
                 if let LispValue::BigInt(v2) = other {
                     if let Some(v2_2) = v2.to_i64() {
                         return v2_2 == *v1;
@@ -707,8 +772,8 @@ fn bignum_test() {
     lisp_eval_str(&mut stk, "(println big2)");
     lisp_eval_str(&mut stk, "(defvar big3 (/ big2 big1 big1 big1 big1 big1))");
     lisp_eval_str(&mut stk, "(println (list big3 big2 big1))");
-    lisp_eval_str(&mut stk, "(assert (println (eq (println big3) (println big1))))");
-    lisp_eval_str(&mut stk, "(assert (not (eq big2 big1)))");
+    lisp_eval_str(&mut stk, "(assert (println (equals big3 big1)))");
+    lisp_eval_str(&mut stk, "(assert (not (equals big2 big1)))");
     //lisp_eval_str(&mut stk, "(assert 1)");
     assert!(stk.error.is_none());
 

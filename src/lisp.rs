@@ -11,6 +11,15 @@ pub fn lisp_eq<'a>(a: &'a LispValue, b: &'a LispValue) -> &'a LispValue {
     }
     return &LispValue::Nil;
 }
+
+pub fn lisp_equals<'a>(a: &'a LispValue, b: &'a LispValue) -> &'a LispValue {
+    if a.equals(b) {
+        return &LispValue::Integer(1);
+    }
+    return &LispValue::Nil;
+}
+
+
 pub fn lisp_not(a: &LispValue) -> &LispValue {
     if eq(a, &LispValue::Nil) {
         return &LispValue::Integer(1);
@@ -258,6 +267,7 @@ pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str("cdddr", LispValue::from_1r(cdddr));
     ctx.set_global_str("cddddr", LispValue::from_1r(cddddr));
     ctx.set_global_str("eq", LispValue::from_2r(lisp_eq));
+    ctx.set_global_str("equals", LispValue::from_2r(lisp_equals));
     ctx.set_global_str("not", LispValue::from_1r(lisp_not));
     ctx.set_global_str("list", LispValue::from_n(lisp_conss));
     ctx.set_global_str("loop", LispValue::from_macro(lisp_loop));
