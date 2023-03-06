@@ -169,9 +169,9 @@ impl PartialEq for LispValue {
 impl LispValue {
     fn equals(&self, other: &Self) -> bool {
         match self {
-            LispValue::Cons(c) => {
-                if let LispValue::Cons(c2) = other {
-                    return c2 == c;
+            LispValue::Cons(_) => {
+                if let LispValue::Cons(_) = other {
+                    return car(self).equals(car(other)) && cdr(self).equals(cdr(other));
                 }
                 return false;
             }
