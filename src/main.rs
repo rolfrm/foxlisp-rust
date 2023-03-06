@@ -510,9 +510,8 @@ fn eq(a: &LispValue, b: &LispValue) -> bool {
 }
 
 fn lisp_raise_error(ctx: &mut Stack, error: LispValue) {
-    println!("ERROR: {}", error);
     ctx.error = Some(error);
-    panic!();
+    //panic!();
 }
 
 fn cons_count(v: &LispValue) -> i64 {
@@ -773,5 +772,15 @@ fn eq_test() {
 fn if_test() {
     let mut ctx = lisp_load_basic();
     let err = ctx.load("(if 1 () (raise (quote error)))");
-    assert!(err.is_none())
+    assert!(err.is_none());
+    let err = ctx.load("(if () (raise (quote error)) 1)");
+    assert!(err.is_none());
+}
+
+#[cfg(test)]
+#[test]
+fn raise_test() {
+    let mut ctx = lisp_load_basic();
+    let err = ctx.load("(raise (quote error))");
+    assert!(err.is_some());
 }
