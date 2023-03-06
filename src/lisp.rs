@@ -287,7 +287,6 @@ pub fn lisp_load_lisp(ctx: &mut LispContext) {
         &mut stack,
         "
         (defun assert (x) (if x 1 (raise (quote (assert failed)))))
-        
         ",
     );
 }

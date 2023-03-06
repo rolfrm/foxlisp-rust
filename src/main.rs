@@ -672,10 +672,72 @@ fn lisp_eval_file(ctx: &mut Stack, code: &str) {
 }
 
 fn main() {
-    let mut ctx = Box::new(LispContext::new());
+    let mut ctx = lisp_load_basic();
+    let mut stk = Stack {
+        global_scope: &mut ctx,
+        local_scope: None,
+        error: None,
+    };
+    
+    let args: Vec<String> = env::args().collect();
+    for arg in args.iter().skip(1) {
+        lisp_eval_file(&mut stk, arg.as_str());
+    }
+}
 
+fn lisp_load_basic<'a>() -> Box<LispContext> {
+    let mut ctx = Box::new(LispContext::new());
     lisp_load_lisp(&mut ctx);
     lisp_math_load(&mut ctx);
+    return ctx;
+}
+
+#[cfg(test)]
+#[test]
+fn bignum_test() {
+    let mut ctx = lisp_load_basic();
+    let mut stk = Stack::new_root(&mut ctx);
+    lisp_eval_str(&mut stk, "(defvar big1 1000000)");
+    lisp_eval_str(&mut stk, "(defvar big2 (* big1 big1 big1 big1 big1 big1))");
+    lisp_eval_str(&mut stk, "(println big2)");
+    lisp_eval_str(&mut stk, "(defvar big3 (/ big2 big1 big1 big1 big1 big1))");
+    lisp_eval_str(&mut stk, "(println (list big3 big2 big1))");
+    lisp_eval_str(&mut stk, "(assert (println (equals big3 big1)))");
+    lisp_eval_str(&mut stk, "(assert (not (equals big2 big1)))");
+    //lisp_eval_str(&mut stk, "(assert 1)");
+    assert!(stk.error.is_none());
+}
+
+#[cfg(test)]
+#[test]
+fn eq_test() {
+    let mut ctx = lisp_load_basic();
+    let err = ctx.load("(assert (println (eq 1 1)))");
+    assert!(err.is_none())
+}
+
+#[cfg(test)]
+#[test]
+fn if_test() {
+    let mut ctx = lisp_load_basic();
+    let err = ctx.load("(if 1 () (raise (quote error)))");
+    assert!(err.is_none());
+    let err = ctx.load("(if () (raise (quote error)) 1)");
+    assert!(err.is_none());
+}
+
+#[cfg(test)]
+#[test]
+fn raise_test() {
+    let mut ctx = lisp_load_basic();
+    let err = ctx.load("(raise (quote error))");
+    assert!(err.is_some());
+}
+
+#[cfg(test)]
+#[test]
+fn mega_test() {
+    let mut ctx =lisp_load_basic();
 
     let code = "(111 222  333 asd asd asdd asddd asdd asd 1.1 2.2 3.3 (x y z) (1.0 2.0 3.0) 3.14)";
     let mut out: LispValue = LispValue::Nil;
@@ -730,57 +792,5 @@ fn main() {
 
     lisp_eval_str(&mut stk, "(defun print2 (a) (println\n (+ 5 a 1.3)))");
     lisp_eval_str(&mut stk, "(println (print2 123))");
-    let args: Vec<String> = env::args().collect();
-    for arg in args.iter().skip(1) {
-        lisp_eval_file(&mut stk, arg.as_str());
-    }
-}
-
-fn lisp_load_basic<'a>() -> Box<LispContext> {
-    let mut ctx = Box::new(LispContext::new());
-    lisp_load_lisp(&mut ctx);
-    lisp_math_load(&mut ctx);
-    return ctx;
-}
-
-#[cfg(test)]
-#[test]
-fn bignum_test() {
-    let mut ctx = lisp_load_basic();
-    let mut stk = Stack::new_root(&mut ctx);
-    lisp_eval_str(&mut stk, "(defvar big1 1000000)");
-    lisp_eval_str(&mut stk, "(defvar big2 (* big1 big1 big1 big1 big1 big1))");
-    lisp_eval_str(&mut stk, "(println big2)");
-    lisp_eval_str(&mut stk, "(defvar big3 (/ big2 big1 big1 big1 big1 big1))");
-    lisp_eval_str(&mut stk, "(println (list big3 big2 big1))");
-    lisp_eval_str(&mut stk, "(assert (println (equals big3 big1)))");
-    lisp_eval_str(&mut stk, "(assert (not (equals big2 big1)))");
-    //lisp_eval_str(&mut stk, "(assert 1)");
-    assert!(stk.error.is_none());
-}
-
-#[cfg(test)]
-#[test]
-fn eq_test() {
-    let mut ctx = lisp_load_basic();
-    let err = ctx.load("(assert (println (eq 1 1)))");
-    assert!(err.is_none())
-}
-
-#[cfg(test)]
-#[test]
-fn if_test() {
-    let mut ctx = lisp_load_basic();
-    let err = ctx.load("(if 1 () (raise (quote error)))");
-    assert!(err.is_none());
-    let err = ctx.load("(if () (raise (quote error)) 1)");
-    assert!(err.is_none());
-}
-
-#[cfg(test)]
-#[test]
-fn raise_test() {
-    let mut ctx = lisp_load_basic();
-    let err = ctx.load("(raise (quote error))");
-    assert!(err.is_some());
+    
 }
