@@ -65,7 +65,7 @@ fn apply_number_func(func: &NumericFunc, a: &LispValue, b: &LispValue) -> LispVa
         if let LispValue::BigRational(y) = &b {
             return LispValue::BigRational((func.f_bigrational)(
                 &num::BigRational::from_i64(*x).unwrap(),
-                y,
+                y
             ));
         }
     }
@@ -137,15 +137,20 @@ fn apply_number_func(func: &NumericFunc, a: &LispValue, b: &LispValue) -> LispVa
 }
 
 fn lisp_apply_numbers(v: &Vec<LispValue>, func: &NumericFunc) -> LispValue {
-    let first = v.first();
-    if let Some(firstv) = first {
-        let mut acc = firstv.clone();
-        for i in v.iter().skip(1) {
-            acc = apply_number_func(func, &acc, i);
+    let mut it = v.iter();
+    if let Some(firstv) = it.next(){
+        if let Some(nextv) = it.next(){
+            let mut acc = apply_number_func(func, firstv, nextv);
+            while let Some(itv) = it.next() {
+                acc = apply_number_func(func, &acc, itv);
+            }
+            return acc;
         }
-        return acc;
+        else{
+            return firstv.clone();
+        }
     }
-    return LispValue::Nil;
+     LispValue::Nil
 }
 
 fn lisp_add(v: Vec<LispValue>) -> LispValue {

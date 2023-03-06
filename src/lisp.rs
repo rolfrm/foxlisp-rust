@@ -74,7 +74,10 @@ fn lisp_cons(a: LispValue, b: LispValue) -> LispValue {
 }
 
 pub fn is_nil(a: &LispValue) -> bool {
-    return eq(a, &LispValue::Nil);
+    match a {
+        &LispValue::Nil => true,
+        _ => false
+    }
 }
 
 pub fn is_cons(a: &LispValue) -> bool {

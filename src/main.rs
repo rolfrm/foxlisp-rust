@@ -32,6 +32,7 @@ pub struct LispFunc {
     args_names: Vec<i32>,
 }
 
+
 pub enum LispValue {
     Cons(Box<(LispValue, LispValue)>),
     Consr(Arc<(LispValue, LispValue)>),
@@ -266,10 +267,6 @@ impl fmt::Display for LispValue {
     }
 }
 
-pub trait Scope {
-    fn get_value(&self, symbol: i32) -> Option<&LispValue>;
-    fn set_value(&mut self, symbol_name: i32, value: &LispValue);
-}
 #[derive(Debug)]
 pub struct LispContext {
     symbols: HashMap<String, i32>,
@@ -502,7 +499,7 @@ fn lisp_eval_lisp_function<'a>(ctx: &mut Stack, func: &LispFunc, args: &'a LispV
     result
 }
 
-fn lisp_eval<'a>(ctx: &mut Stack, v: &'a LispValue) -> LispValue {
+fn lisp_eval<'a>(ctx: &'a mut Stack, v: &'a LispValue) -> LispValue {
     match v {
         LispValue::Cons(_) | LispValue::Consr(_) => {
             let value = lisp_eval(ctx, car(v));
@@ -524,7 +521,7 @@ fn lisp_eval<'a>(ctx: &mut Stack, v: &'a LispValue) -> LispValue {
             },
 
             LispValue::Macro(mf) => {
-                return (mf)(ctx, cdr(v));
+                return (mf)(ctx, cdr(v))
             },
             LispValue::LispFunction(lf) => {
                 return lisp_eval_lisp_function(ctx, &lf, cdr(v));
