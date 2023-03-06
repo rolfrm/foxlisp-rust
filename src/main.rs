@@ -253,15 +253,15 @@ impl fmt::Display for LispValue {
             }
             LispValue::Symbol(id) => return write!(f, "Symbol({})", id),
             LispValue::Rational(x) => {
-                write!(f, "{0}", x)
+                write!(f, "{}", x)
             }
             LispValue::Integer(x) => {
-                write!(f, "{0}", x)
+                write!(f, "{}", x)
             }
             LispValue::BigInt(x) => {
-                write!(f, "{0}", x)
+                write!(f, "{}", x)
             }
-            LispValue::BigRational(x) => write!(f, "{0}", x),
+            LispValue::BigRational(x) => write!(f, "{}", x.to_string()),
             LispValue::NativeFunction(_) => write!(f, "Native Function"),
             LispValue::Macro(_) => write!(f, "Macro"),
             LispValue::LispFunction(_) => write!(f, "LispFunction"),
@@ -272,7 +272,7 @@ impl fmt::Display for LispValue {
 #[derive(Debug)]
 pub struct LispContext {
     symbols: HashMap<String, i32>,
-    id_gen: i32,
+    symbol_name_lookup: Vec<String>,
     globals: Vec<LispValue>,
     global_names: HashMap<i32, usize, nohash_hasher::BuildNoHashHasher<i32>>,
 }
@@ -339,7 +339,7 @@ impl<'a> LispContext {
     fn new() -> LispContext {
         return LispContext {
             symbols: HashMap::new(),
-            id_gen: 1,
+            symbol_name_lookup: Vec::new(),
             globals: Vec::new(),
             global_names: HashMap::with_capacity_and_hasher(8, nohash_hasher::BuildNoHashHasher::default()),
         };
@@ -349,15 +349,14 @@ impl<'a> LispContext {
         if let Option::Some(id) = self.symbols.get(name) {
             return *id;
         }
-        let id2 = self.id_gen;
-        self.id_gen += 1;
-
+        let id2 = self.symbol_name_lookup.len() as i32;
+        self.symbol_name_lookup.push(name.into());
         self.symbols.insert(name.into(), id2);
         return id2;
     }
 
     pub fn get_symbol(&mut self, name: &str) -> LispValue {
-        return LispValue::Symbol(self.get_symbol_id(name));
+        LispValue::Symbol(self.get_symbol_id(name))
     }
 
     pub fn set_global(&mut self, symbol_name: i32, value: LispValue) {
@@ -627,7 +626,7 @@ fn main() {
     
     lisp_eval_str(
         &mut stk,
-        "(defun print2 (a) (println (+ 5 a)))",
+        "(defun print2 (a) (println\n (+ 5 a 1.3)))",
     );
     lisp_eval_str(&mut stk,
         "(println (print2 123))");

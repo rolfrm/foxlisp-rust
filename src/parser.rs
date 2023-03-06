@@ -20,7 +20,7 @@ fn parse_integer<'a>(code0: &'a [u8], val: &mut i64) -> Option<&'a [u8]> {
 
 fn skip_whitespace(code: &[u8]) -> &[u8] {
     let mut code2 = code;
-    while code2.len() > 0 && code2[0] == b' ' {
+    while code2.len() > 0 && (code2[0] == b' ' || code2[0] == b'\n') {
         code2 = &code2[1..];
     }
     return code2;
@@ -61,12 +61,12 @@ fn parse_symbol<'a>(
     let mut code = code0;
     let mut len = 0;
 
-    while code.len() > 0 && code[0] != b')' && code[0] != b'(' && code[0] != b' ' {
+    while code.len() > 0 && code[0] != b')' && code[0] != b'(' && code[0] != b' ' && code[0] != b'\n' {
         code = &code[1..];
         len += 1;
     }
 
-    if code.len() > 0 && code[0] != b')' && code[0] != b' ' && code[0] != b'(' {
+    if code.len() > 0 && code[0] != b')' && code[0] != b' ' && code[0] != b'(' && code[0] != b'\n' {
         return None;
     }
 

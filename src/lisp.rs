@@ -201,6 +201,20 @@ fn lisp_defun(ctx: &mut Stack, body: &LispValue) -> LispValue{
     
 }
 
+fn lisp_defvar(ctx: &mut Stack, body: &LispValue) -> LispValue{
+    let name = car(body);
+    let args = cadr(body);
+    let value = lisp_eval(ctx, args);
+    if let LispValue::Symbol(id) = name {
+        ctx.global_scope.set_global(*id, value);
+    }
+    LispValue::Nil
+}
+
+fn lisp_quote(ctx: &mut Stack, body: &LispValue) -> LispValue{
+    return car(body).clone();
+}
+
 pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str(
         "println",
@@ -222,5 +236,7 @@ pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str("set!", LispValue::from_macro(lisp_set));
     ctx.set_global_str("if", LispValue::from_macro(lisp_if));
     ctx.set_global_str("defun", LispValue::from_macro(lisp_defun));
+    ctx.set_global_str("defvar", LispValue::from_macro(lisp_defvar));
+    ctx.set_global_str("quote", LispValue::from_macro(lisp_quote));
 
 }
