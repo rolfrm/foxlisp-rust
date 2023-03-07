@@ -79,6 +79,30 @@ fn parse_rational<'a>(code0: &'a [u8], val: &mut f64) -> Option<&'a [u8]> {
     return None;
 }
 
+fn is_token_end(c: u8) -> bool {
+    return is_whitespace(c) || c == b'(' || c == b')';
+}
+
+fn parse_token<'a>(
+    code0: &'a [u8],
+    token: &str) -> Option<&'a [u8]> {
+        let b = token.as_bytes();
+        let l = b.len();
+        if code0.len() < l {
+            return None;
+        }
+        for i in 0..l {
+            if b[i] != code0[i] {
+                return None;
+            }
+        }
+        if code0.len() == l || is_token_end(code0[l]) {
+            return Some(&code0[l..]);
+        }
+        return None;
+    }
+
+
 fn parse_symbol<'a>(
     ctx: &mut LispContext,
     code0: &'a [u8],
@@ -187,6 +211,14 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
         let mut keyword = false;
         if code2.len() > 0 && code2[0] == b':' {
             keyword = true
+        }
+        if let Some(next) = parse_token(code2, "t") {
+            *value = LispValue::T;
+            return Some(next);
+        }
+        if let Some(next) = parse_token(code2, "&rest") {
+            *value = LispValue::Rest;
+            return Some(next);
         }
         if let Some(sym) = parse_symbol(ctx, code2, value) {
             if keyword {

@@ -85,8 +85,7 @@ pub fn is_nil(a: &LispValue) -> bool {
 
 pub fn is_cons(a: &LispValue) -> bool {
     match a {
-        LispValue::Cons(_) => true,
-        LispValue::Consr(_) => true,
+        LispValue::Consr(_)| LispValue::Cons(_) => true,
         _ => false,
     }
 }
@@ -195,11 +194,24 @@ fn lisp_defun(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let code = cddr(body);
     let mut arg_names = Vec::new();
     let mut it = args;
+    let mut variadic = false;
     while !is_nil(it) {
         if let LispValue::Symbol(id) = car(it) {
             arg_names.push(*id);
-        } else {
-            panic!("error");
+        } else if let LispValue::Rest = car(it) {
+            it = cdr(it);
+             if let LispValue::Symbol(restarg) = car(it) {
+                arg_names.push(*restarg);
+             }else{
+                lisp_raise_error(ctx, "an argument name must follow &rest.".into());
+                return LispValue::Nil;     
+             }
+             variadic = true;
+             break;
+        }  
+        else {
+            lisp_raise_error(ctx, "unsupported defun argument.".into());
+            return LispValue::Nil;
         }
         it = cdr(it);
     }
@@ -207,7 +219,8 @@ fn lisp_defun(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let f = LispFunc {
         code: Box::new(code.clone()),
         args_names: arg_names,
-        magic: false
+        magic: false,
+        variadic: variadic
     };
     if let LispValue::Symbol(name) = name {
         ctx.global_scope
@@ -236,7 +249,8 @@ fn lisp_defun_magic(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let f = LispFunc {
         code: Box::new(code.clone()),
         args_names: arg_names,
-        magic: true
+        magic: true,
+        variadic: true
     };
     if let LispValue::Symbol(name) = name {
         ctx.global_scope
@@ -257,7 +271,12 @@ fn lisp_defvar(ctx: &mut Stack, body: &LispValue) -> LispValue {
     LispValue::Nil
 }
 
-fn lisp_quote(_: &mut Stack, body: &LispValue) -> LispValue {
+fn lisp_quote(ctx: &mut Stack, body: &LispValue) -> LispValue {
+    if !is_nil(cdr(body)){
+        lisp_raise_error(ctx, "quote may only take one argument!".into());
+        return LispValue::Nil;
+        
+    }
     return car(body).clone();
 }
 

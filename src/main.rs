@@ -37,13 +37,16 @@ impl fmt::Debug for NativeFunc {
 pub struct LispFunc {
     code: Box<LispValue>,
     args_names: Vec<i32>,
-    magic: bool
+    magic: bool,
+    variadic: bool
 }
 
 pub enum LispValue {
     Cons(Box<(LispValue, LispValue)>),
     Consr(Arc<(LispValue, LispValue)>),
     Nil,
+    T,
+    Rest,
     String(String),
     Rational(f64),
     Integer(i64),
@@ -81,6 +84,8 @@ impl Clone for LispValue {
             LispValue::NativeFunction(f) => LispValue::NativeFunction(f.clone()),
             LispValue::Macro(m) => LispValue::Macro(m.clone()),
             LispValue::LispFunction(f) => LispValue::LispFunction(f.clone()),
+            LispValue::T => LispValue::T,
+            LispValue::Rest => LispValue::Rest
         }
     }
 }
@@ -120,6 +125,9 @@ impl LispValue {
     }
     pub fn from_macro(item: fn(&mut Stack, &LispValue) -> LispValue) -> Self {
         LispValue::Macro(item)
+    }
+    pub fn cons(a: LispValue, b: LispValue) -> LispValue{
+        LispValue::Consr(Arc::new((a, b)))
     }
 }
 
@@ -178,6 +186,12 @@ impl PartialEq for LispValue {
             LispValue::BigRational(v1) => {
                 if let LispValue::BigRational(v2) = other {
                     return v1.eq(v2);
+                }
+                return false;
+            }
+            LispValue::T => {
+                if let LispValue::T = other {
+                    return true;
                 }
                 return false;
             }
@@ -244,7 +258,10 @@ impl PartialOrd for LispValue {
                 }
                 return None;
             }
-            _ => None,
+            _ => match self.eq(other) {
+                true => return Some(Ordering::Equal),
+                false => return None
+                },
         }
     }
 }
@@ -254,18 +271,13 @@ impl PartialOrd for LispValue {
 impl LispValue {
     fn equals(&self, other: &Self) -> bool {
         match self {
-            LispValue::Cons(_) => {
-                if let LispValue::Cons(_) = other {
-                    return car(self).equals(car(other)) && cdr(self).equals(cdr(other));
+            LispValue::Cons(_) | LispValue::Consr(_) => {
+                return match other {
+                    LispValue::Consr(_)| LispValue::Cons(_) => car(self).equals(car(other)) && cdr(self).equals(cdr(other)),
+                    _ => false  
                 }
-                return false;
             }
-            LispValue::Consr(ar) => {
-                if let LispValue::Consr(ar2) = other {
-                    return ar2 == ar;
-                }
-                return false;
-            }
+            
             LispValue::Nil => {
                 if let LispValue::Nil = other {
                     return true;
@@ -326,6 +338,13 @@ impl LispValue {
                     if let Some(i2) = v1.to_i64() {
                         return i2 == *i;
                     }
+                }
+                return false;
+            }
+            LispValue::Rest => false,
+            LispValue::T => {
+                if let LispValue::T = other {
+                    return true;
                 }
                 return false;
             }
@@ -445,6 +464,9 @@ impl fmt::Display for LispValue {
             LispValue::NativeFunction(_) => write!(f, "Native Function"),
             LispValue::Macro(_) => write!(f, "Macro"),
             LispValue::LispFunction(_) => write!(f, "LispFunction"),
+            LispValue::Rest => write!(f, "&REST"),
+            LispValue::T => write!(f, "T"),
+            
         }
     }
 }
@@ -709,16 +731,41 @@ fn lisp_invoke1r<'a>(
 }
 
 fn lisp_eval_lisp_function<'a>(ctx: &mut Stack, func: &LispFunc, args: &'a LispValue) -> LispValue {
-    let mut i = 0;
+    let mut i : usize = 0;
     let mut it = args;
     let mut arg_veca = Vec::new();
     let mut arg_id = Vec::new();
-    while is_cons(it) {
+    
+    let mut argcnt = func.args_names.len();
+    if func.variadic {
+        argcnt = argcnt - 1;
+    }
+    while is_cons(it) && i < argcnt {
+        
         arg_veca.push(lisp_eval(ctx, car(it)));
         arg_id.push(func.args_names[i]);
+        
         i += 1;
         it = cdr(it);
     }
+    if func.variadic {
+         fn listeval(ctx: &mut Stack, v: &LispValue) -> LispValue {
+                let v0 = car(v);
+                let rest = cdr(v);
+                if is_nil(rest){
+                    return LispValue::cons(lisp_eval(ctx, v0), LispValue::Nil);
+                }
+                LispValue::cons(lisp_eval(ctx, v0), listeval(ctx, rest))
+            }
+            let lst = listeval(ctx, it);
+            arg_veca.push(lst);
+            arg_id.push(func.args_names[i]);
+    }else if is_cons(it) {
+        lisp_raise_error(ctx, "Too many arguments for function.".into());
+        return LispValue::Nil;
+        
+    }
+    
     let scope = LispScope {
         id: arg_id.as_slice(),
         values: arg_veca.as_mut_slice(),
