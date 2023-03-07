@@ -183,10 +183,10 @@ fn lisp_if(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let if_clause = cadr(body);
     let else_clause = caddr(body);
     let val = lisp_eval(ctx, cond_clause);
-    if !is_nil(&val) {
-        lisp_eval(ctx, if_clause)
+    if is_nil(&val) {
+        return lisp_eval(ctx, else_clause);
     } else {
-        lisp_eval(ctx, else_clause)
+        return lisp_eval(ctx, if_clause);
     }
 }
 
@@ -253,6 +253,24 @@ pub fn lisp_eval_value(ctx: &mut Stack, body: &LispValue) -> LispValue {
     lisp_eval(ctx, car(body))
 }
 
+fn lisp_gt<'a>(a: &'a LispValue,b: &'a LispValue) -> &'a LispValue{
+    if let Some(x) = a.partial_cmp(b) {
+        if x.is_gt() {
+            return &LispValue::Integer(1);
+        }
+    }
+    return &LispValue::Nil;
+}
+
+fn lisp_lt<'a>(a: &'a LispValue,b: &'a LispValue) -> &'a LispValue{
+    if let Some(x) = a.partial_cmp(b) {
+        if x.is_lt() {
+            return &LispValue::Integer(1);
+        }
+    }
+    return &LispValue::Nil;
+}
+
 pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str(
         "println",
@@ -267,6 +285,8 @@ pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str("cdddr", LispValue::from_1r(cdddr));
     ctx.set_global_str("cddddr", LispValue::from_1r(cddddr));
     ctx.set_global_str("eq", LispValue::from_2r(lisp_eq));
+    ctx.set_global_str("<", LispValue::from_2r(lisp_lt));
+    ctx.set_global_str(">", LispValue::from_2r(lisp_gt));
     ctx.set_global_str("equals", LispValue::from_2r(lisp_equals));
     ctx.set_global_str("not", LispValue::from_1r(lisp_not));
     ctx.set_global_str("list", LispValue::from_n(lisp_conss));
@@ -283,5 +303,5 @@ pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str("eval", LispValue::from_macro(lisp_eval_value));
     let mut stack = Stack::new_root(ctx);
 
-    stack.eval("(defun assert (x) (if x 1 (raise (quote (assert failed)))))");
+    stack.eval("(defun assert (cond) (if cond 1 (raise (quote (assert failed)))))");
 }

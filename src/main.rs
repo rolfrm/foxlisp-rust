@@ -1,5 +1,6 @@
 use num::{self, ToPrimitive};
 use std::collections::HashMap;
+use std::cmp::Ordering;
 use std::env;
 use std::fmt::{self};
 use std::ops::DerefMut;
@@ -182,6 +183,71 @@ impl PartialEq for LispValue {
     }
 }
 
+impl PartialOrd for LispValue {
+    fn partial_cmp(&self, other: &LispValue) -> Option<Ordering> {
+        match self {
+            LispValue::Cons(c) => {
+                if let LispValue::Cons(c2) = other {
+                    return c.partial_cmp(c2);
+                }
+                return None;
+            }
+            LispValue::Consr(ar) => {
+                if let LispValue::Consr(ar2) = other {
+                    return ar2.partial_cmp(ar);
+                }
+                return None;
+            }
+            LispValue::Nil => {
+                if let LispValue::Nil = other {
+                    return Some(Ordering::Equal);
+                }
+                return None;
+            }
+            LispValue::String(v1) => {
+                if let LispValue::String(v2) = other {
+                    return v1.partial_cmp(v2);
+                }
+                return None;
+            }
+            LispValue::Rational(v1) => {
+                if let LispValue::Rational(v2) = other {
+                    return v1.partial_cmp(v2);
+                }
+
+                return None;
+            }
+            LispValue::Integer(v1) => {
+                if let LispValue::Integer(v2) = other {
+                    return v1.partial_cmp(v2);
+                }
+                return None;
+            }
+            LispValue::Symbol(v1) => {
+                if let LispValue::Symbol(v2) = other {
+                    return v1.partial_cmp(v2);
+                }
+                return None;
+            }
+            LispValue::BigInt(v1) => {
+                if let LispValue::BigInt(v2) = other {
+                    return v1.partial_cmp(v2);
+                }
+                return None;
+            }
+            LispValue::BigRational(v1) => {
+                if let LispValue::BigRational(v2) = other {
+                    return v1.partial_cmp(v2);
+                }
+                return None;
+            }
+            _ => None,
+        }
+    }
+}
+
+
+
 impl LispValue {
     fn equals(&self, other: &Self) -> bool {
         match self {
@@ -357,11 +423,10 @@ impl fmt::Display for LispValue {
                 return CURRENT_NAMES.with(|v| {
                     let v2 = v.borrow();
                     if v2.len() > *id as usize {
-                        return write!(f, "{}", v2[*id as usize]);    
+                        write!(f, "{}", v2[*id as usize])    
+                    }else{
+                        write!(f, "Symbol({})", id)
                     }
-                    return write!(f, "Symbol({})", id);
-                    
-                   
                 });
                 },
             LispValue::Rational(x) => {
@@ -645,7 +710,7 @@ fn lisp_eval_lisp_function<'a>(ctx: &mut Stack, func: &LispFunc, args: &'a LispV
     let mut it = args;
     let mut arg_veca = Vec::new();
     let mut arg_id = Vec::new();
-    while let LispValue::Cons(_) = it {
+    while is_cons(it) {
         arg_veca.push(lisp_eval(ctx, car(it)));
         arg_id.push(func.args_names[i]);
         i += 1;
@@ -670,7 +735,8 @@ fn lisp_eval_lisp_function<'a>(ctx: &mut Stack, func: &LispFunc, args: &'a LispV
 }
 
 fn lisp_eval<'a>(ctx: &'a mut Stack, v: &'a LispValue) -> LispValue {
-    if let Some(_) = &ctx.error {
+    if let Some(e) = &ctx.error {
+        ctx.error = Some(LispValue::String(format!("{}\nat {}",e, v)));
         return LispValue::Nil;
     }
             
@@ -701,7 +767,7 @@ fn lisp_eval<'a>(ctx: &'a mut Stack, v: &'a LispValue) -> LispValue {
             if let Some(value) = ctx.get_value(*id) {
                 return value.clone();
             } else {
-                lisp_raise_error(ctx, "No such symbol!".into());
+                lisp_raise_error(ctx, format!("No such symbol! {} {:#?}", v, ctx).into());
                 return LispValue::Nil;
             }
         }
@@ -713,11 +779,16 @@ fn lisp_eval_str(ctx: &mut Stack, code: &str) -> LispValue {
     let code2 = parse_string(ctx.global_scope, code);
     return lisp_eval(ctx, &code2);
 }
-fn lisp_load_str(ctx: &mut Stack, code: &str) {
+
+fn lisp_load_str(ctx: &mut Stack, code: &str) -> Option<LispValue> {
     let mut bytes = code.as_bytes();
     while let Some(c) = parse_bytes(ctx.global_scope, &mut bytes) {
-        lisp_eval(ctx, &c);
+        ctx.eval(&c);
+        if ctx.error.is_some() {
+            return ctx.error.clone();
+        }
     }
+    None
 }
 
 fn lisp_eval_file(ctx: &mut Stack, code: &str) {
@@ -726,7 +797,7 @@ fn lisp_eval_file(ctx: &mut Stack, code: &str) {
         Ok(r) => {
             lisp_load_str(ctx, r.as_str());
         }
-        Err(e) => {
+        Err(_) => {
             lisp_raise_error(ctx, LispValue::String("eerr".to_string()));
         }
     }
@@ -743,6 +814,10 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     for arg in args.iter().skip(1) {
         lisp_eval_file(&mut stk, arg.as_str());
+        if let Some(err) = stk.error {
+            println!("ERROR: {}", err);
+            break;
+        }
     }
 }
 
@@ -849,8 +924,10 @@ fn mega_test() {
     stk.eval("(println (let ((a 2) (b 3) (c 5)) (* a b c)))");
     stk.eval("(println (let ((x 10000)) (loop (not (eq x 0)) (set! x (- x 1))) x))");
     
-    stk.eval("(defun print2 (a) (println\n (+ 5 a 1.3)))");
-    stk.eval( "(println (print2 123))");
+    stk.eval("(defun print2 (a) (println ;;hello world\n (+ 5 a 1.3)))");
+    stk.eval( "(assert (println (print2 123)))");
+    stk.eval("(defun pow2 (a) (* a a))");
+    println!("{}", stk.eval("(pow2 10)"));
     assert!(stk.error.is_none());
     
 }

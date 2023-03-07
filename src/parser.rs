@@ -18,10 +18,29 @@ fn parse_integer<'a>(code0: &'a [u8], val: &mut i64) -> Option<&'a [u8]> {
     return Option::Some(code);
 }
 
-fn skip_whitespace(code: &[u8]) -> &[u8] {
+fn skip_line(code: &[u8]) -> &[u8]{
     let mut code2 = code;
-    while code2.len() > 0 && (code2[0] == b' ' || code2[0] == b'\n') {
+    
+    while code2.len() > 0 && code2[0] != b'\n' {
         code2 = &code2[1..];
+    }
+    if code2.len() > 0 {
+        code2 = &code2[1..];
+    }
+    return code2;
+}
+
+fn skip_whitespace_and_comment(code: &[u8]) -> &[u8] {
+    let mut code2 = code;
+    loop {
+        while code2.len() > 0 && (code2[0] == b' ' || code2[0] == b'\n') {
+            code2 = &code2[1..];
+        }
+        if code2.len() > 0 && code2[0] == b';' {
+            code2 = skip_line(code2);
+        }else{
+            break;
+        }
     }
     return code2;
 }
@@ -66,6 +85,7 @@ fn parse_symbol<'a>(
         && code[0] != b'('
         && code[0] != b' '
         && code[0] != b'\n'
+        && code[0] != b';'
     {
         code = &code[1..];
         len += 1;
@@ -84,7 +104,7 @@ fn parse_symbol<'a>(
 
 pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -> Option<&'a [u8]> {
     let mut code2 = code;
-    code2 = skip_whitespace(code2);
+    code2 = skip_whitespace_and_comment(code2);
 
     let mut integer_value: i64 = 0;
     if let Some(code3) = parse_integer(code2, &mut integer_value) {
@@ -104,7 +124,7 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
     if (code2[0] == b'(') {
         code2 = &code2[1..];
 
-        code2 = skip_whitespace(code2);
+        code2 = skip_whitespace_and_comment(code2);
         let mut sub = Vec::new();
         while code2.len() > 0 && code2[0] != b')' {
             let mut v2 = LispValue::Nil;
@@ -113,9 +133,11 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
                 code2 = x;
             }
 
-            code2 = skip_whitespace(code2);
+            code2 = skip_whitespace_and_comment(code2);
         }
-        code2 = &code2[1..];
+        if code2.len() > 0 {
+            code2 = &code2[1..];
+        }
 
         let mut v = LispValue::Nil;
         while sub.len() > 0 {
