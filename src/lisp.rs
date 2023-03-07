@@ -271,6 +271,29 @@ fn lisp_lt<'a>(a: &'a LispValue,b: &'a LispValue) -> &'a LispValue{
     return &LispValue::Nil;
 }
 
+fn lisp_handle_error(ctx: &mut Stack, body: &LispValue) -> LispValue{
+    let main = car(body);
+    let handler = cadr(body);
+    let r = lisp_eval(ctx, main);
+    if let Some(err) = ctx.error.clone() {
+        let handler_name = car(handler);
+        let handler_body = cadr(handler);
+        if let LispValue::Symbol(id) = handler_name {
+            let local = LispScope {
+                id: &[*id],
+                values: &mut [err],
+            parent: &ctx.local_scope,
+        };
+        ctx.error = None;
+        let mut stack = Stack::new_local(ctx.global_scope, local);
+        return lisp_eval(&mut stack, handler_body);
+        }else{
+            lisp_raise_error(ctx, "First handler argument must be a symbol".into());
+        }
+    }
+    return r;
+}
+
 pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str(
         "println",
@@ -301,6 +324,8 @@ pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str("load", LispValue::from_macro(lisp_load));
     ctx.set_global_str("progn", LispValue::from_macro(lisp_progn));
     ctx.set_global_str("eval", LispValue::from_macro(lisp_eval_value));
+    ctx.set_global_str("handle-error", LispValue::from_macro(lisp_handle_error));
+    
     let mut stack = Stack::new_root(ctx);
 
     stack.eval("(defun assert (cond) (if cond 1 (raise (quote (assert failed)))))");

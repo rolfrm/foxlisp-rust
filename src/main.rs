@@ -759,7 +759,7 @@ fn lisp_eval<'a>(ctx: &'a mut Stack, v: &'a LispValue) -> LispValue {
                     return lisp_eval_lisp_function(ctx, &lf, cdr(v));
                 }
 
-                _ => lisp_raise_error(ctx, "no such function!".into()),
+                _ => lisp_raise_error(ctx, format!("no such function: {}", car( v)).into()),
             }
             return LispValue::Nil;
         }
