@@ -121,7 +121,7 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
         return None;
     }
 
-    if (code2[0] == b'(') {
+    if code2[0] == b'(' {
         code2 = &code2[1..];
 
         code2 = skip_whitespace_and_comment(code2);
@@ -148,7 +148,7 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
     }
 
     if code2[0] == b'"' {
-        code2 = &code2[1..];
+        //code2 = &code2[1..];
         return None;
     }
 

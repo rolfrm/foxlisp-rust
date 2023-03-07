@@ -1,6 +1,5 @@
-use std::default;
-
 use crate::*;
+
 pub fn caddr(lisp: &LispValue) -> &LispValue {
     return car(cddr(lisp));
 }
@@ -228,7 +227,7 @@ fn lisp_defvar(ctx: &mut Stack, body: &LispValue) -> LispValue {
     LispValue::Nil
 }
 
-fn lisp_quote(ctx: &mut Stack, body: &LispValue) -> LispValue {
+fn lisp_quote(_: &mut Stack, body: &LispValue) -> LispValue {
     return car(body).clone();
 }
 
