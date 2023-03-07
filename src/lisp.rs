@@ -110,6 +110,9 @@ fn lisp_progn(ctx: &mut Stack, body: &LispValue) -> LispValue {
 
     while !is_nil(it) {
         result = lisp_eval(ctx, car(it));
+        if ctx.error.is_some() {
+            return LispValue::Nil;
+        }
         it = cdr(it);
     }
     return result;
@@ -325,7 +328,7 @@ fn lisp_handle_error(ctx: &mut Stack, body: &LispValue) -> LispValue{
     let r = lisp_eval(ctx, main);
     if let Some(err) = ctx.error.clone() {
         let handler_name = car(handler);
-        let handler_body = cadr(handler);
+        let handler_body = cdr(handler);
         if let LispValue::Symbol(id) = handler_name {
             let local = LispScope {
                 id: &[*id],
@@ -334,7 +337,7 @@ fn lisp_handle_error(ctx: &mut Stack, body: &LispValue) -> LispValue{
         };
         ctx.error = None;
         let mut stack = Stack::new_local(ctx.global_scope, local);
-        return lisp_eval(&mut stack, handler_body);
+        return lisp_progn(&mut stack, handler_body);
         }else{
             lisp_raise_error(ctx, "First handler argument must be a symbol".into());
         }

@@ -748,6 +748,10 @@ fn lisp_eval_lisp_function<'a>(ctx: &mut Stack, func: &LispFunc, args: &'a LispV
         i += 1;
         it = cdr(it);
     }
+    if i < argcnt {
+        lisp_raise_error(ctx, "Not enough required arguments to satisfy function.".into());
+        return LispValue::Nil;
+    }
     if func.variadic {
          fn listeval(ctx: &mut Stack, v: &LispValue) -> LispValue {
                 let v0 = car(v);
