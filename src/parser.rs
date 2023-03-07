@@ -30,10 +30,17 @@ fn skip_line(code: &[u8]) -> &[u8]{
     return code2;
 }
 
+fn is_whitespace(c: u8) -> bool {
+    match c {
+        b' ' | b'\n' | b'\t' | b'\r' => true,
+        _ => false
+    }
+}
+
 fn skip_whitespace_and_comment(code: &[u8]) -> &[u8] {
     let mut code2 = code;
     loop {
-        while code2.len() > 0 && (code2[0] == b' ' || code2[0] == b'\n') {
+        while code2.len() > 0 && is_whitespace(code2[0]) {
             code2 = &code2[1..];
         }
         if code2.len() > 0 && code2[0] == b';' {
@@ -83,15 +90,13 @@ fn parse_symbol<'a>(
     while code.len() > 0
         && code[0] != b')'
         && code[0] != b'('
-        && code[0] != b' '
-        && code[0] != b'\n'
-        && code[0] != b';'
+        && !is_whitespace(code[0])
     {
         code = &code[1..];
         len += 1;
     }
 
-    if code.len() > 0 && code[0] != b')' && code[0] != b' ' && code[0] != b'(' && code[0] != b'\n' {
+    if code.len() > 0 && code[0] != b')' && !is_whitespace(code[0]) && code[0] != b'(' {
         return None;
     }
 
