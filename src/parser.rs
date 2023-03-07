@@ -131,14 +131,12 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
     }
 
     {
-        let mut v = LispValue::Nil;
-
         if let Some(sym) = parse_symbol(ctx, code2, value) {
             return Some(sym);
         }
     }
 
-    return Some(code2);
+    None
 }
 
 pub fn parse_string(ctx: &mut LispContext, code: &str) -> LispValue {

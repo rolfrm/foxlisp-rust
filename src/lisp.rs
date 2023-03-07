@@ -249,7 +249,7 @@ fn lisp_load(ctx: &mut Stack, body: &LispValue) -> LispValue {
     return LispValue::Nil;
 }
 
-fn lisp_eval_value(ctx: &mut Stack, body: &LispValue) -> LispValue {
+pub fn lisp_eval_value(ctx: &mut Stack, body: &LispValue) -> LispValue {
     lisp_eval(ctx, car(body))
 }
 
@@ -283,10 +283,5 @@ pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str("eval", LispValue::from_macro(lisp_eval_value));
     let mut stack = Stack::new_root(ctx);
 
-    lisp_load_str(
-        &mut stack,
-        "
-        (defun assert (x) (if x 1 (raise (quote (assert failed)))))
-        ",
-    );
+    stack.eval("(defun assert (x) (if x 1 (raise (quote (assert failed)))))");
 }
