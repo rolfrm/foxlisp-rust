@@ -148,7 +148,33 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
     }
 
     if code2[0] == b'"' {
-        //code2 = &code2[1..];
+        let mut str : Vec<u8> = Vec::new();
+        let mut code3 = &code2[1..];
+        let mut finished = false;
+        loop {
+            if code3.len() == 0 {
+                break;
+            }
+            if code3[0] == b'"' {
+                if code3.len() > 1 {
+                    if code3[1] == b'"' {
+                        code3 = &code3[2..];
+                        str.push(code3[0]);
+                        continue;
+                    }
+                }
+                code3 = &code3[1..];
+                finished = true;
+                break;
+            }
+            str.push(code3[0]);
+            code3 = &code3[1..]
+        }
+        if finished {
+            *value = LispValue::String(String::from_utf8(str).unwrap());
+            return Some(code3);
+        }
+        
         return None;
     }
 
@@ -161,7 +187,7 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
     None
 }
 
-pub fn parse_string(ctx: &mut LispContext, code: &str) -> LispValue {
+pub fn parse_from_string(ctx: &mut LispContext, code: &str) -> LispValue {
     let mut c = code.as_bytes();
     return parse_bytes(ctx, &mut c).unwrap();
 }

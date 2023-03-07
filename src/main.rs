@@ -775,7 +775,7 @@ fn lisp_eval<'a>(ctx: &'a mut Stack, v: &'a LispValue) -> LispValue {
 }
 
 fn lisp_eval_str(ctx: &mut Stack, code: &str) -> LispValue {
-    let code2 = parse_string(ctx.global_scope, code);
+    let code2 = parse_from_string(ctx.global_scope, code);
     return lisp_eval(ctx, &code2);
 }
 
