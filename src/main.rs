@@ -15,6 +15,9 @@ use std::cell::RefCell;
 mod parser;
 use parser::*;
 
+mod advanced;
+use advanced::*;
+
 #[derive(Clone)]
 pub enum NativeFunc {
     Function1(fn(LispValue) -> LispValue),
@@ -34,6 +37,7 @@ impl fmt::Debug for NativeFunc {
 pub struct LispFunc {
     code: Box<LispValue>,
     args_names: Vec<i32>,
+    magic: bool
 }
 
 pub enum LispValue {
@@ -48,7 +52,7 @@ pub enum LispValue {
     BigRational(num::BigRational),
     NativeFunction(NativeFunc),
     Macro(fn(&mut Stack, &LispValue) -> LispValue),
-    LispFunction(Arc<LispFunc>),
+    LispFunction(Arc<LispFunc>)
 }
 
 impl fmt::Debug for LispValue {
@@ -718,7 +722,10 @@ fn lisp_eval_lisp_function<'a>(ctx: &mut Stack, func: &LispFunc, args: &'a LispV
     let scope = LispScope {
         id: arg_id.as_slice(),
         values: arg_veca.as_mut_slice(),
-        parent: &None,
+        parent: match func.magic {
+            true => &ctx.local_scope,
+            false => &None
+        }
     };
 
     let mut stack2 = Stack::new_local(ctx.global_scope, scope);
@@ -824,6 +831,7 @@ fn lisp_load_basic<'a>() -> Box<LispContext> {
     let mut ctx = Box::new(LispContext::new());
     lisp_load_lisp(&mut ctx);
     lisp_math_load(&mut ctx);
+    lisp_advanced_load(&mut ctx);
     return ctx;
 }
 

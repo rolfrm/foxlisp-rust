@@ -207,6 +207,36 @@ fn lisp_defun(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let f = LispFunc {
         code: Box::new(code.clone()),
         args_names: arg_names,
+        magic: false
+    };
+    if let LispValue::Symbol(name) = name {
+        ctx.global_scope
+            .set_global(*name, LispValue::LispFunction(Arc::new(f)));
+    } else {
+        panic!("Not a symbol");
+    }
+    return LispValue::Nil;
+}
+
+fn lisp_defun_magic(ctx: &mut Stack, body: &LispValue) -> LispValue {
+    let name = car(body);
+    let args = cadr(body);
+    let code = cddr(body);
+    let mut arg_names = Vec::new();
+    let mut it = args;
+    while !is_nil(it) {
+        if let LispValue::Symbol(id) = car(it) {
+            arg_names.push(*id);
+        } else {
+            panic!("error");
+        }
+        it = cdr(it);
+    }
+
+    let f = LispFunc {
+        code: Box::new(code.clone()),
+        args_names: arg_names,
+        magic: true
     };
     if let LispValue::Symbol(name) = name {
         ctx.global_scope
@@ -317,6 +347,7 @@ pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str("set!", LispValue::from_macro(lisp_set));
     ctx.set_global_str("if", LispValue::from_macro(lisp_if));
     ctx.set_global_str("defun", LispValue::from_macro(lisp_defun));
+    ctx.set_global_str("defun:magic", LispValue::from_macro(lisp_defun_magic));
     ctx.set_global_str("defvar", LispValue::from_macro(lisp_defvar));
     ctx.set_global_str("quote", LispValue::from_macro(lisp_quote));
     ctx.set_global_str("raise", LispValue::from_macro(lisp_raise));

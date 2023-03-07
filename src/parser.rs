@@ -184,7 +184,16 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
     }
 
     {
+        let mut keyword = false;
+        if code2.len() > 0 && code2[0] == b':' {
+            keyword = true
+        }
         if let Some(sym) = parse_symbol(ctx, code2, value) {
+            if keyword {
+                if let LispValue::Symbol(x) = value {
+                    ctx.set_value(*x, value);
+                }
+            }
             return Some(sym);
         }
     }
