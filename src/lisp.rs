@@ -11,6 +11,12 @@ pub fn lisp_eq<'a>(a: &'a LispValue, b: &'a LispValue) -> &'a LispValue {
     return &LispValue::Nil;
 }
 
+pub fn lisp_neq<'a>(a: &'a LispValue, b: &'a LispValue) -> &'a LispValue {
+    if !eq(a, b) {
+        return &LispValue::Integer(1);
+    }
+    return &LispValue::Nil;
+}
 pub fn lisp_equals<'a>(a: &'a LispValue, b: &'a LispValue) -> &'a LispValue {
     if a.equals(b) {
         return &LispValue::Integer(1);
@@ -175,7 +181,7 @@ fn lisp_set(ctx: &mut Stack, body: &LispValue) -> LispValue {
         ctx.set_value(*s, &val);
         return val;
     }
-    lisp_raise_error(ctx, LispValue::Integer(5));
+    lisp_raise_error(ctx, format!("Must be a symbol: {}", sym).into());
     return LispValue::Nil;
 }
 
@@ -359,6 +365,7 @@ pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str("cdddr", LispValue::from_1r(cdddr));
     ctx.set_global_str("cddddr", LispValue::from_1r(cddddr));
     ctx.set_global_str("eq", LispValue::from_2r(lisp_eq));
+    ctx.set_global_str("neq", LispValue::from_2r(lisp_neq));
     ctx.set_global_str("<", LispValue::from_2r(lisp_lt));
     ctx.set_global_str(">", LispValue::from_2r(lisp_gt));
     ctx.set_global_str("equals", LispValue::from_2r(lisp_equals));
