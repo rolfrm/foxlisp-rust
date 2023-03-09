@@ -476,7 +476,7 @@ pub struct LispContext {
     symbols: HashMap<String, i32>,
     symbol_name_lookup: Vec<String>,
     globals: Vec<LispValue>,
-    global_names: HashMap<i32, usize, nohash_hasher::BuildNoHashHasher<i32>>,
+    global_names: Vec<usize>,
 }
 
 impl LispContext {
@@ -599,10 +599,7 @@ impl<'a> LispContext {
             symbols: HashMap::new(),
             symbol_name_lookup: Vec::new(),
             globals: Vec::new(),
-            global_names: HashMap::with_capacity_and_hasher(
-                8,
-                nohash_hasher::BuildNoHashHasher::default(),
-            ),
+            global_names: Vec::with_capacity(10),
         };
     }
 
@@ -622,19 +619,25 @@ impl<'a> LispContext {
     }
 
     pub fn set_global(&mut self, symbol_name: i32, value: LispValue) {
-        if let Option::Some(index) = self.global_names.get(&symbol_name) {
+        
+        if let Option::Some(index) = self.global_names.get(symbol_name as usize) {
             self.globals[*index] = value;
         } else {
             let new_index = self.globals.len();
-
-            self.global_names.insert(symbol_name, new_index);
+            while self.global_names.len() <= symbol_name as usize {
+                self.global_names.push(0);
+            }
+            self.global_names[symbol_name as usize] = new_index;
             self.globals.insert(new_index, value);
         }
     }
 
     pub fn get_global(&self, symbol_name: i32) -> Option<&LispValue> {
-        if let Option::Some(index) = self.global_names.get(&symbol_name) {
-            return Some(&self.globals[*index]);
+        
+        if let Option::Some(index) = self.global_names.get(symbol_name as usize) {
+            
+            let x = Some(&self.globals[*index]);
+            return x;   
         }
         return None;
     }
@@ -787,6 +790,7 @@ fn lisp_eval_lisp_function<'a>(ctx: &mut Stack, func: &LispFunc, args: &'a LispV
         it = cdr(it);
     }
     ctx.error = stack2.error;
+    
 
     result
 }
@@ -796,7 +800,6 @@ fn lisp_eval<'a>(ctx: &'a mut Stack, v: &'a LispValue) -> LispValue {
         ctx.error = Some(LispValue::String(format!("{}\nat {}",e, v)));
         return LispValue::Nil;
     }
-            
     match v {
         LispValue::Cons(_) | LispValue::Consr(_) => {
             let value = lisp_eval(ctx, car(v));
@@ -871,7 +874,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     for arg in args.iter().skip(1) {
         lisp_eval_file(&mut stk, arg.as_str());
-        if let Some(err) = stk.error {
+        if let Some(err) = stk.error.clone() {
             println!("ERROR: {}", err);
             break;
         }
@@ -880,6 +883,7 @@ fn main() {
 
 fn lisp_load_basic<'a>() -> Box<LispContext> {
     let mut ctx = Box::new(LispContext::new());
+    ctx.set_global_str("<<<RESERVED>>>", LispValue::Nil);
     lisp_load_lisp(&mut ctx);
     lisp_math_load(&mut ctx);
     lisp_advanced_load(&mut ctx);
