@@ -6,6 +6,4 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-typed-index-collections = "3.1.0"
 num = "0.4"
-nohash-hasher = "0.2.0"

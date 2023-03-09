@@ -8,7 +8,6 @@ mod lisp;
 use lisp::*;
 mod math;
 use math::*;
-use nohash_hasher;
 use std::fs;
 use std::cell::RefCell;
 
