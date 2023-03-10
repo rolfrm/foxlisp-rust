@@ -110,16 +110,10 @@ fn lisp_loop(ctx: &mut Stack, body: &LispValue) -> LispValue {
 }
 
 fn lisp_progn(ctx: &mut Stack, body: &LispValue) -> LispValue {
-    let mut it = body;
     let mut result = LispValue::Nil;
-
-    while !is_nil(it) {
-        result = lisp_eval(ctx, car(it));
-        if ctx.error.is_some() {
-            return LispValue::Nil;
-        }
-        it = cdr(it);
-    }
+    for code in body.to_iter() {
+        result = lisp_eval(ctx, code);
+    } 
     return result;
 }
 
@@ -141,16 +135,9 @@ fn lisp_let_n<const N: usize>(ctx: &mut Stack, args: &LispValue, body: &LispValu
         values: &mut arga,
         parent: &ctx.local_scope,
     };
-
-    let mut it = body;
-    let mut result = LispValue::Nil;
-
     let mut stack2 = Stack::new_local(ctx.global_scope, scope);
-
-    while !is_nil(it) {
-        result = lisp_eval(&mut stack2, car(it));
-        it = cdr(it);
-    }
+    
+    let result = lisp_progn(&mut stack2, body);
     ctx.error = stack2.error;
     return result;
 }
@@ -362,6 +349,7 @@ pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str("cddr", LispValue::from_1r(cddr));
     ctx.set_global_str("caddr", LispValue::from_1r(caddr));
     ctx.set_global_str("cdddr", LispValue::from_1r(cdddr));
+    ctx.set_global_str("cadddr", LispValue::from_1r(cadddr));
     ctx.set_global_str("cddddr", LispValue::from_1r(cddddr));
     ctx.set_global_str("eq", LispValue::from_2r(lisp_eq));
     ctx.set_global_str("neq", LispValue::from_2r(lisp_neq));
