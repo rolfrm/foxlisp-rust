@@ -986,7 +986,6 @@ fn raise_test() {
 #[cfg(test)]
 #[test]
 fn iter_test() {
-    let mut ctx = lisp_load_basic();
     let i = LispValue::cons(1.into(), LispValue::cons(2.into(), LispValue::Nil));
     let mut it = i.to_iter();
     assert!(eq(it.next().unwrap(), &LispValue::Integer(1)));
