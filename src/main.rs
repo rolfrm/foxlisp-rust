@@ -137,6 +137,7 @@ impl LispValue {
             current: self
         }
     }
+    
 }
 
 impl PartialEq for LispValue {
@@ -741,6 +742,9 @@ fn lisp_invokenr<'a>(
         LispValue::Nil, 
         LispValue::Nil, 
         LispValue::Nil, 
+        LispValue::Nil, 
+        LispValue::Nil, 
+        LispValue::Nil, 
         LispValue::Nil]; 
     let mut it = argsl;
     let mut itv = 0;
@@ -795,13 +799,16 @@ fn lisp_invoke1r<'a>(
 fn lisp_eval_lisp_function<'a>(ctx: &mut Stack, func: &LispFunc, args: &'a LispValue) -> LispValue {
     let mut i : usize = 0;
     let mut it = args;
-    let mut arg_veca = Vec::new();
-    let mut arg_id = Vec::new();
     
     let mut argcnt = func.args_names.len();
+    let mut cap = argcnt; 
     if func.variadic {
         argcnt = argcnt - 1;
+        cap = 2;
     }
+    let mut arg_veca = Vec::with_capacity(cap);
+    let mut arg_id = Vec::with_capacity(cap);
+    
     while is_cons(it) && i < argcnt {
         
         arg_veca.push(lisp_eval(ctx, car(it)));
@@ -842,11 +849,10 @@ fn lisp_eval_lisp_function<'a>(ctx: &mut Stack, func: &LispFunc, args: &'a LispV
     };
 
     let mut stack2 = Stack::new_local(ctx.global_scope, scope);
-    let mut it = func.code.as_ref();
+    
     let mut result = LispValue::Nil;
-    while !is_nil(it) {
-        result = lisp_eval(&mut stack2, car(it));
-        it = cdr(it);
+    for form in func.code.to_iter() {
+        result = lisp_eval(&mut stack2, form);
     }
     ctx.error = stack2.error;
     

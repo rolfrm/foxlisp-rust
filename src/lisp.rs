@@ -172,14 +172,11 @@ fn lisp_set(ctx: &mut Stack, body: &LispValue) -> LispValue {
 }
 
 fn lisp_if(ctx: &mut Stack, body: &LispValue) -> LispValue {
-    let cond_clause = car(body);
-    let if_clause = cadr(body);
-    let else_clause = caddr(body);
-    let val = lisp_eval(ctx, cond_clause);
+    let val = lisp_eval(ctx, car(body));
     if is_nil(&val) {
-        return lisp_eval(ctx, else_clause);
+        return lisp_eval(ctx, caddr(body));
     } else {
-        return lisp_eval(ctx, if_clause);
+        return lisp_eval(ctx, cadr(body));
     }
 }
 
