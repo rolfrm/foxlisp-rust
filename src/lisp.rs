@@ -100,11 +100,10 @@ fn lisp_loop(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let cond = car(body);
     let body = cdr(body);
     let mut result = LispValue::Nil;
+    
     while !is_nil(&lisp_eval(ctx, cond)) {
-        let mut it = body;
-        while !is_nil(it) {
-            result = lisp_eval(ctx, car(it));
-            it = cdr(it);
+        for code in body.to_iter() {
+            result = lisp_eval(ctx, code);
         }
     }
     return result;

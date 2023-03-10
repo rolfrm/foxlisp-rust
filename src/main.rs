@@ -128,6 +128,11 @@ impl LispValue {
     pub fn cons(a: LispValue, b: LispValue) -> LispValue{
         LispValue::Consr(Arc::new((a, b)))
     }
+    pub fn to_iter<'a>(&'a self) -> ConsIter<'a> {
+        ConsIter {
+            current: self
+        }
+    }
 }
 
 impl PartialEq for LispValue {
@@ -504,6 +509,33 @@ pub struct Stack<'a> {
     local_scope: Option<Box<LispScope<'a>>>,
     global_scope: &'a mut LispContext,
     error: Option<LispValue>,
+}
+
+pub struct ConsIter<'a> {
+    current: &'a LispValue
+}
+
+impl<'a> Iterator for ConsIter<'a> {
+    type Item = &'a LispValue;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.current;
+        match current {
+            LispValue::Cons(c) => {
+                
+                let res = &c.0;
+                self.current = &c.1;
+                return Some(res);
+            },
+            LispValue::Consr(c) => {
+                
+                let res = &c.0;
+                self.current = &c.1;
+                return Some(res);
+            }
+            _ => return None   
+        }
+    }
 }
 
 thread_local! {
@@ -953,6 +985,17 @@ fn raise_test() {
 
 #[cfg(test)]
 #[test]
+fn iter_test() {
+    let mut ctx = lisp_load_basic();
+    let i = LispValue::cons(1.into(), LispValue::cons(2.into(), LispValue::Nil));
+    let mut it = i.to_iter();
+    assert!(eq(it.next().unwrap(), &LispValue::Integer(1)));
+    assert!(eq(it.next().unwrap(), &LispValue::Integer(2)));
+    assert!(it.next().is_none());
+}
+
+#[cfg(test)]
+#[test]
 fn mega_test() {
     let mut ctx = lisp_load_basic();
 
@@ -966,7 +1009,7 @@ fn mega_test() {
     assert!(eq(&LispValue::Integer(222), car(cdr(&out))));
     assert!(eq(&ctx.get_symbol("asd"), cadddr(&out)));
     assert!(!eq(&ctx.get_symbol("asdd"), cadddr(&out)));
-    let code2 = parse_string(&mut ctx, "(cdr (println  (cons (+ 1 2 3.14) (cons (* 1000 (+ 1234 9999 4321 1111 (- 1000 1000 1000))) 1))))");
+    let code2 = parse_from_string(&mut ctx, "(cdr (println  (cons (+ 1 2 3.14) (cons (* 1000 (+ 1234 9999 4321 1111 (- 1000 1000 1000))) 1))))");
     let mut stk = Stack::new_root(&mut ctx);
 
     lisp_eval(&mut stk, &code2);
