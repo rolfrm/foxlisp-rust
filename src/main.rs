@@ -24,6 +24,7 @@ pub enum NativeFunc {
     Function1r(fn(&LispValue) -> &LispValue),
     Function2r(for<'a> fn(&'a LispValue, &'a LispValue) -> &'a LispValue),
     FunctionN(fn(Vec<LispValue>) -> LispValue),
+    FunctionNr(for<'a> fn(&[LispValue]) -> LispValue),
 }
 
 impl fmt::Debug for NativeFunc {
@@ -121,6 +122,9 @@ impl LispValue {
     }
     pub fn from_n(item: fn(Vec<LispValue>) -> LispValue) -> Self {
         LispValue::NativeFunction(NativeFunc::FunctionN(item))
+    }
+    pub fn from_nr(item: fn(&[LispValue]) -> LispValue) -> Self {
+        LispValue::NativeFunction(NativeFunc::FunctionNr(item))
     }
     pub fn from_macro(item: fn(&mut Stack, &LispValue) -> LispValue) -> Self {
         LispValue::Macro(item)
@@ -725,6 +729,30 @@ fn lisp_invoken<'a>(
     let r2 = fcn(args2);
     return r2;
 }
+fn lisp_invokenr<'a>(
+    ctx: &mut Stack,
+    argsl: &'a LispValue,
+    fcn: fn(&[LispValue]) -> LispValue,
+) -> LispValue {
+    
+    let mut args = [LispValue::Nil, 
+        LispValue::Nil, 
+        LispValue::Nil, 
+        LispValue::Nil, 
+        LispValue::Nil, 
+        LispValue::Nil, 
+        LispValue::Nil]; 
+    let mut it = argsl;
+    let mut itv = 0;
+    while !is_nil(it) {
+        let r = lisp_eval(ctx, car(it));
+        args[itv] = r;
+        it = cdr(it);
+        itv += 1;
+    }
+    let r2 = fcn(&args[0..itv]);
+    return r2;
+}
 
 fn lisp_invoke2<'a>(
     ctx: &mut Stack,
@@ -842,6 +870,7 @@ fn lisp_eval<'a>(ctx: &'a mut Stack, v: &'a LispValue) -> LispValue {
                         NativeFunc::Function1r(f) => lisp_invoke1r(ctx, cdr(v), f),
                         NativeFunc::Function2r(f) => lisp_invoke2r(ctx, cdr(v), f),
                         NativeFunc::FunctionN(f) => lisp_invoken(ctx, cdr(v), f),
+                        NativeFunc::FunctionNr(f) => lisp_invokenr(ctx, cdr(v), f),
                     }
                 }
 

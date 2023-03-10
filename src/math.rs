@@ -139,7 +139,7 @@ fn apply_number_func(func: &NumericFunc, a: &LispValue, b: &LispValue) -> LispVa
     return LispValue::Nil;
 }
 
-fn lisp_apply_numbers(v: &Vec<LispValue>, func: &NumericFunc) -> LispValue {
+fn lisp_apply_numbers(v: &[LispValue], func: &NumericFunc) -> LispValue {
     let mut it = v.iter();
     if let Some(firstv) = it.next() {
         if let Some(nextv) = it.next() {
@@ -155,19 +155,19 @@ fn lisp_apply_numbers(v: &Vec<LispValue>, func: &NumericFunc) -> LispValue {
     LispValue::Nil
 }
 
-fn lisp_add(v: Vec<LispValue>) -> LispValue {
+fn lisp_add(v: &[LispValue]) -> LispValue {
     lisp_apply_numbers(&v, &ADD_OP)
 }
 
-fn lisp_sub(v: Vec<LispValue>) -> LispValue {
+fn lisp_sub(v: &[LispValue]) -> LispValue {
     lisp_apply_numbers(&v, &SUB_OP)
 }
 
-fn lisp_mul(v: Vec<LispValue>) -> LispValue {
+fn lisp_mul(v: &[LispValue]) -> LispValue {
     lisp_apply_numbers(&v, &MUL_OP)
 }
 
-fn lisp_div(v: Vec<LispValue>) -> LispValue {
+fn lisp_div(v: &[LispValue]) -> LispValue {
     lisp_apply_numbers(&v, &DIV_OP)
 }
 
@@ -192,10 +192,8 @@ fn lisp_decf(scope: &mut Stack, v: &LispValue) -> LispValue {
     if let LispValue::Symbol(loc) = location {
         let v = scope.get_value(*loc);
         if let Some(r) = v {
-            let mut args = Vec::new();
-            args.push(r.clone());
-            args.push(amount2.clone());
-            let result = lisp_sub(args);
+            let args = [r.clone(), amount2.clone()];
+            let result = lisp_sub(&args);
             scope.set_value(*loc, &result);
             return result;
         }
@@ -208,10 +206,10 @@ fn lisp_decf(scope: &mut Stack, v: &LispValue) -> LispValue {
 
 
 pub fn lisp_math_load(ctx: &mut LispContext) {
-    ctx.set_global_str("+", LispValue::from_n(lisp_add));
-    ctx.set_global_str("-", LispValue::from_n(lisp_sub));
-    ctx.set_global_str("*", LispValue::from_n(lisp_mul));
-    ctx.set_global_str("/", LispValue::from_n(lisp_div));
+    ctx.set_global_str("+", LispValue::from_nr(lisp_add));
+    ctx.set_global_str("-", LispValue::from_nr(lisp_sub));
+    ctx.set_global_str("*", LispValue::from_nr(lisp_mul));
+    ctx.set_global_str("/", LispValue::from_nr(lisp_div));
     ctx.set_global_str("big-rational", LispValue::from_1(lisp_bigrational));
     ctx.set_global_str("decf", LispValue::from_macro(lisp_decf));
 
