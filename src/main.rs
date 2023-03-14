@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::cmp::Ordering;
 use std::env;
 use std::fmt::{self};
-use std::ops::DerefMut;
 use std::sync::Arc;
+use std::sync::RwLock;
 mod lisp;
 use lisp::*;
 mod math;
@@ -28,10 +28,6 @@ pub enum NativeFunc {
     FunctionNr(for<'a> fn(&[LispValue]) -> LispValue),
 }
 
-fn testa(a: [LispValue; 2]) -> LispValue{
-    return a[0].clone()
-}
-
 impl fmt::Debug for NativeFunc {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("Nativefunc")
@@ -46,9 +42,12 @@ pub struct LispFunc {
     variadic: bool
 }
 
+struct TempIndex {
+    value : LispValue
+}
+
 pub enum LispValue {
-    Cons(Box<(LispValue, LispValue)>),
-    Consr(Arc<(LispValue, LispValue)>),
+    Cons(Arc<(LispValue, LispValue)>),
     Nil,
     T,
     Rest,
@@ -77,8 +76,7 @@ impl Default for LispValue {
 impl Clone for LispValue {
     fn clone(&self) -> Self {
         match self {
-            LispValue::Cons(v) => LispValue::Consr(Arc::new((v.0.clone(), v.1.clone()))),
-            LispValue::Consr(v) => LispValue::Consr(v.clone()),
+            LispValue::Cons(arc) => LispValue::Cons(arc.clone()),
             LispValue::Nil => LispValue::Nil,
             LispValue::String(s) => LispValue::String(s.clone()),
             LispValue::BigInt(b) => LispValue::BigInt(b.clone()),
@@ -135,7 +133,7 @@ impl LispValue {
         LispValue::Macro(item)
     }
     pub fn cons(a: LispValue, b: LispValue) -> LispValue{
-        LispValue::Consr(Arc::new((a, b)))
+        LispValue::Cons(Arc::new((a, b)))
     }
     pub fn to_iter<'a>(&'a self) -> ConsIter<'a> {
         ConsIter {
@@ -151,12 +149,6 @@ impl PartialEq for LispValue {
             LispValue::Cons(c) => {
                 if let LispValue::Cons(c2) = other {
                     return c2 == c;
-                }
-                return false;
-            }
-            LispValue::Consr(ar) => {
-                if let LispValue::Consr(ar2) = other {
-                    return ar2 == ar;
                 }
                 return false;
             }
@@ -176,7 +168,6 @@ impl PartialEq for LispValue {
                 if let LispValue::Rational(v2) = other {
                     return v1 == v2;
                 }
-
                 return false;
             }
             LispValue::Integer(v1) => {
@@ -223,12 +214,7 @@ impl PartialOrd for LispValue {
                 }
                 return None;
             }
-            LispValue::Consr(ar) => {
-                if let LispValue::Consr(ar2) = other {
-                    return ar2.partial_cmp(ar);
-                }
-                return None;
-            }
+            
             LispValue::Nil => {
                 if let LispValue::Nil = other {
                     return Some(Ordering::Equal);
@@ -285,12 +271,12 @@ impl PartialOrd for LispValue {
 impl LispValue {
     fn equals(&self, other: &Self) -> bool {
         match self {
-            LispValue::Cons(_) | LispValue::Consr(_) => {
+            LispValue::Cons(_) => {
                 return match other {
-                    LispValue::Consr(_)| LispValue::Cons(_) => car(self).equals(car(other)) && cdr(self).equals(cdr(other)),
+                    LispValue::Cons(_) => car(self).equals(car(other)) && cdr(self).equals(cdr(other)),
                     _ => false  
                 }
-            }
+            },
             
             LispValue::Nil => {
                 if let LispValue::Nil = other {
@@ -425,7 +411,7 @@ impl TryInto<i64> for LispValue {
 impl fmt::Display for LispValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
-            LispValue::Cons(_) | LispValue::Consr(_) => {
+            LispValue::Cons(_) => {
                 let mut it = &*self;
                 write!(f, "(").unwrap();
                 let mut first = true;
@@ -533,12 +519,6 @@ impl<'a> Iterator for ConsIter<'a> {
         let current = self.current;
         match current {
             LispValue::Cons(c) => {
-                
-                let res = &c.0;
-                self.current = &c.1;
-                return Some(res);
-            },
-            LispValue::Consr(c) => {
                 
                 let res = &c.0;
                 self.current = &c.1;
@@ -713,13 +693,7 @@ fn lisp_raise_error(ctx: &mut Stack, error: LispValue) {
 }
 
 fn cons_count(v: &LispValue) -> i64 {
-    let mut it = v;
-    let mut cnt = 0;
-    while !is_nil(it) {
-        it = cdr(it);
-        cnt += 1;
-    }
-    return cnt;
+    v.to_iter().count() as i64
 }
 
 fn lisp_invoken<'a>(
@@ -728,12 +702,10 @@ fn lisp_invoken<'a>(
     fcn: fn(Vec<LispValue>) -> LispValue,
 ) -> LispValue {
     let mut args: Vec<LispValue> = Vec::with_capacity(cons_count(argsl) as usize);
-    let mut it = argsl;
-
-    while !is_nil(it) {
-        let r = lisp_eval(ctx, car(it));
+    
+    for it in argsl.to_iter() {
+        let r = lisp_eval(ctx, it);
         args.push(r);
-        it = cdr(it);
     }
     let args2 = args;
     let r2 = fcn(args2);
@@ -755,14 +727,13 @@ fn lisp_invokenr<'a>(
         LispValue::Nil, 
         LispValue::Nil, 
         LispValue::Nil]; 
-    let mut it = argsl;
     let mut itv = 0;
-    while !is_nil(it) {
-        let r = lisp_eval(ctx, car(it));
+    for it in argsl.to_iter() {
+        let r = lisp_eval(ctx, it);
         args[itv] = r;
-        it = cdr(it);
         itv += 1;
     }
+    
     let r2 = fcn(&args[0..itv]);
     return r2;
 }
@@ -872,7 +843,7 @@ fn lisp_eval<'a>(ctx: &'a mut Stack, v: &'a LispValue) -> LispValue {
         return LispValue::Nil;
     }
     match v {
-        LispValue::Cons(_) | LispValue::Consr(_) => {
+        LispValue::Cons(_) => {
             let value = lisp_eval(ctx, car(v));
      
             match value {
@@ -1087,3 +1058,14 @@ fn mega_test() {
     assert!(stk.error.is_none());
     
 }
+
+#[cfg(test)]
+#[test]
+fn tmpIndex_test() {
+    let mut v :Arc<RwLock<Vec<LispValue>>> = Arc::new(RwLock::new(vec![LispValue::Nil])); 
+    {
+        let vw = v.try_write();
+        vw.unwrap()[0] = LispValue::T;
+    }
+    println!("{:#?}", v);
+    }

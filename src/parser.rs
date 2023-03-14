@@ -170,7 +170,7 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
 
         let mut v = LispValue::Nil;
         while sub.len() > 0 {
-            v = LispValue::Cons(Box::new((sub.pop().unwrap(), v)))
+            v = LispValue::Cons(Arc::new((sub.pop().unwrap(), v)))
         }
         *value = v;
         return Some(code2);

@@ -34,7 +34,6 @@ pub fn lisp_not(a: &LispValue) -> &LispValue {
 pub fn car(lisp: &LispValue) -> &LispValue {
     match lisp {
         LispValue::Cons(c) => &c.0,
-        LispValue::Consr(c) => &c.0,
         _ => &LispValue::Nil,
     }
 }
@@ -42,7 +41,6 @@ pub fn car(lisp: &LispValue) -> &LispValue {
 pub fn cdr(lisp: &LispValue) -> &LispValue {
     match lisp {
         LispValue::Cons(c) => &c.1,
-        LispValue::Consr(c) => &c.1,
         _ => &LispValue::Nil,
     }
 }
@@ -73,13 +71,13 @@ fn lisp_print(v: LispValue) -> LispValue {
 fn lisp_conss(v: Vec<LispValue>) -> LispValue {
     let mut v0 = LispValue::Nil;
     for i in v.iter().rev() {
-        v0 = LispValue::Cons(Box::new((i.clone(), v0)));
+        v0 = LispValue::cons(i.clone(), v0);
     }
     return v0;
 }
 
 fn lisp_cons(a: LispValue, b: LispValue) -> LispValue {
-    LispValue::Cons(Box::new((a, b)))
+    LispValue::cons(a, b)
 }
 
 pub fn is_nil(a: &LispValue) -> bool {
@@ -91,7 +89,7 @@ pub fn is_nil(a: &LispValue) -> bool {
 
 pub fn is_cons(a: &LispValue) -> bool {
     match a {
-        LispValue::Consr(_)| LispValue::Cons(_) => true,
+        LispValue::Cons(_) => true,
         _ => false,
     }
 }
