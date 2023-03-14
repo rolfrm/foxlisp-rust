@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::cmp::Ordering;
 use std::env;
 use std::fmt::{self};
+use std::ops::DerefMut;
 use std::sync::Arc;
 mod lisp;
 use lisp::*;
@@ -25,6 +26,10 @@ pub enum NativeFunc {
     Function2r(for<'a> fn(&'a LispValue, &'a LispValue) -> &'a LispValue),
     FunctionN(fn(Vec<LispValue>) -> LispValue),
     FunctionNr(for<'a> fn(&[LispValue]) -> LispValue),
+}
+
+fn testa(a: [LispValue; 2]) -> LispValue{
+    return a[0].clone()
 }
 
 impl fmt::Debug for NativeFunc {
@@ -486,6 +491,7 @@ pub struct LispContext {
     symbol_name_lookup: Vec<String>,
     globals: Vec<LispValue>,
     global_names: Vec<usize>,
+    arg_stack: Vec<LispValue>
 }
 
 impl LispContext {
@@ -513,7 +519,7 @@ pub struct LispScope<'a> {
 pub struct Stack<'a> {
     local_scope: Option<Box<LispScope<'a>>>,
     global_scope: &'a mut LispContext,
-    error: Option<LispValue>,
+    error: Option<LispValue>
 }
 
 pub struct ConsIter<'a> {
@@ -552,16 +558,18 @@ impl<'a> Stack<'a> {
         Stack {
             local_scope: None,
             global_scope: ctx,
-            error: None,
+            error: None
         }
     }
     fn new_local(ctx: &'a mut LispContext, local: LispScope<'a>) -> Self {
         Stack {
             local_scope: Some(Box::new(local)),
             global_scope: ctx,
-            error: None,
-        }
+            error: None
+            }
     }
+    
+    
         
     fn eval<T>(&mut self, code: &T) -> LispValue where T: LispEvalable + ?Sized {
         let code = code.to_evalable(self.global_scope);
@@ -636,6 +644,7 @@ impl<'a> LispContext {
             symbol_name_lookup: Vec::new(),
             globals: Vec::new(),
             global_names: Vec::with_capacity(10),
+            arg_stack: Vec::new().into()
         };
     }
 
@@ -806,14 +815,12 @@ fn lisp_eval_lisp_function<'a>(ctx: &mut Stack, func: &LispFunc, args: &'a LispV
         argcnt = argcnt - 1;
         cap = 2;
     }
+    
     let mut arg_veca = Vec::with_capacity(cap);
-    let mut arg_id = Vec::with_capacity(cap);
     
     while is_cons(it) && i < argcnt {
         
-        arg_veca.push(lisp_eval(ctx, car(it)));
-        arg_id.push(func.args_names[i]);
-        
+        arg_veca.push(lisp_eval(ctx, car(it)));        
         i += 1;
         it = cdr(it);
     }
@@ -832,7 +839,6 @@ fn lisp_eval_lisp_function<'a>(ctx: &mut Stack, func: &LispFunc, args: &'a LispV
             }
             let lst = listeval(ctx, it);
             arg_veca.push(lst);
-            arg_id.push(func.args_names[i]);
     }else if is_cons(it) {
         lisp_raise_error(ctx, "Too many arguments for function.".into());
         return LispValue::Nil;
@@ -840,7 +846,7 @@ fn lisp_eval_lisp_function<'a>(ctx: &mut Stack, func: &LispFunc, args: &'a LispV
     }
     
     let scope = LispScope {
-        id: arg_id.as_slice(),
+        id: func.args_names.as_slice(),
         values: arg_veca.as_mut_slice(),
         parent: match func.magic {
             true => &ctx.local_scope,
@@ -868,16 +874,30 @@ fn lisp_eval<'a>(ctx: &'a mut Stack, v: &'a LispValue) -> LispValue {
     match v {
         LispValue::Cons(_) | LispValue::Consr(_) => {
             let value = lisp_eval(ctx, car(v));
+     
             match value {
                 LispValue::NativeFunction(n) => {
-                    return match n {
-                        NativeFunc::Function1(f) => lisp_invoke1(ctx, cdr(v), f),
-                        NativeFunc::Function2(f) => lisp_invoke2(ctx, cdr(v), f),
-                        NativeFunc::Function1r(f) => lisp_invoke1r(ctx, cdr(v), f),
-                        NativeFunc::Function2r(f) => lisp_invoke2r(ctx, cdr(v), f),
-                        NativeFunc::FunctionN(f) => lisp_invoken(ctx, cdr(v), f),
-                        NativeFunc::FunctionNr(f) => lisp_invokenr(ctx, cdr(v), f),
+                    let prev_count = ctx.global_scope.arg_stack.len();
+                    
+                    for it in v.to_iter().skip(1) {
+                        let r = lisp_eval(ctx, it);
+                        
+                        ctx.global_scope.arg_stack.push(r);
                     }
+                    let slice = &ctx.global_scope.arg_stack[prev_count..];
+                    
+                    let result: (i32, LispValue) = match n {
+                        NativeFunc::Function1(f) 
+                          => (1, (f)(slice[0].clone())),
+                        NativeFunc::Function2(f) => (2, (f)(slice[0].clone(), slice[1].clone())),
+                        NativeFunc::Function1r(f) => (1, (f)(&slice[0]).clone()).clone(),
+                        NativeFunc::Function2r(f) => (2, (f)(&slice[0], &slice[1]).clone()),
+                        NativeFunc::FunctionN(f) =>(slice.len() as i32, (f)(slice.to_vec())),
+                        NativeFunc::FunctionNr(f) => (slice.len() as i32, (f)(slice)),
+                    };
+                    ctx.global_scope.arg_stack.truncate(prev_count);
+                    return result.1;
+                    
                 }
 
                 LispValue::Macro(mf) => return (mf)(ctx, cdr(v)),
@@ -931,11 +951,7 @@ fn lisp_eval_file(ctx: &mut Stack, code: &str) {
 
 fn main() {
     let mut ctx = lisp_load_basic();
-    let mut stk = Stack {
-        global_scope: &mut ctx,
-        local_scope: None,
-        error: None,
-    };
+    let mut stk = Stack::new_root(&mut ctx);
     
     let args: Vec<String> = env::args().collect();
     for arg in args.iter().skip(1) {
@@ -960,6 +976,7 @@ fn lisp_load_basic<'a>() -> Box<LispContext> {
 #[test]
 fn bignum_test() {
     let mut ctx = lisp_load_basic();
+    
     let mut stk = Stack::new_root(&mut ctx);
     lisp_eval_str(&mut stk, "(defvar big1 1000000)");
     lisp_eval_str(&mut stk, "(defvar big2 (* big1 big1 big1 big1 big1 big1))");
@@ -1044,6 +1061,7 @@ fn mega_test() {
     assert!(eq(&ctx.get_symbol("asd"), cadddr(&out)));
     assert!(!eq(&ctx.get_symbol("asdd"), cadddr(&out)));
     let code2 = parse_from_string(&mut ctx, "(cdr (println  (cons (+ 1 2 3.14) (cons (* 1000 (+ 1234 9999 4321 1111 (- 1000 1000 1000))) 1))))");
+    
     let mut stk = Stack::new_root(&mut ctx);
 
     lisp_eval(&mut stk, &code2);
