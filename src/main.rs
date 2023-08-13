@@ -3,8 +3,7 @@ use std::collections::HashMap;
 use std::cmp::Ordering;
 use std::env;
 use std::fmt::{self};
-use std::sync::Arc;
-use std::sync::RwLock;
+use std::rc::Rc;
 mod lisp;
 use lisp::*;
 mod math;
@@ -15,8 +14,8 @@ use std::cell::RefCell;
 mod parser;
 use parser::*;
 
-mod advanced;
-use advanced::*;
+//mod advanced;
+//use advanced::*;
 
 #[derive(Clone)]
 pub enum NativeFunc {
@@ -47,7 +46,7 @@ struct TempIndex {
 }
 
 pub enum LispValue {
-    Cons(Arc<(LispValue, LispValue)>),
+    Cons(Rc<(LispValue, LispValue)>),
     Nil,
     T,
     Rest,
@@ -59,7 +58,7 @@ pub enum LispValue {
     BigRational(num::BigRational),
     NativeFunction(NativeFunc),
     Macro(fn(&mut Stack, &LispValue) -> LispValue),
-    LispFunction(Arc<LispFunc>)
+    LispFunction(Rc<LispFunc>)
 }
 
 impl fmt::Debug for LispValue {
@@ -133,7 +132,7 @@ impl LispValue {
         LispValue::Macro(item)
     }
     pub fn cons(a: LispValue, b: LispValue) -> LispValue{
-        LispValue::Cons(Arc::new((a, b)))
+        LispValue::Cons(Rc::new((a, b)))
     }
     pub fn to_iter<'a>(&'a self) -> ConsIter<'a> {
         ConsIter {
@@ -939,7 +938,7 @@ fn lisp_load_basic<'a>() -> Box<LispContext> {
     ctx.set_global_str("<<<RESERVED>>>", LispValue::Nil);
     lisp_load_lisp(&mut ctx);
     lisp_math_load(&mut ctx);
-    lisp_advanced_load(&mut ctx);
+    //lisp_advanced_load(&mut ctx);
     return ctx;
 }
 
@@ -1059,13 +1058,13 @@ fn mega_test() {
     
 }
 
-#[cfg(test)]
-#[test]
-fn tmpIndex_test() {
-    let mut v :Arc<RwLock<Vec<LispValue>>> = Arc::new(RwLock::new(vec![LispValue::Nil])); 
-    {
-        let vw = v.try_write();
-        vw.unwrap()[0] = LispValue::T;
-    }
-    println!("{:#?}", v);
-    }
+//#[cfg(test)]
+//#[test]
+//fn tmpIndex_test() {
+    //let mut v :Rc<RwLock<Vec<LispValue>>> = Arc::new(RwLock::new(vec![LispValue::Nil])); 
+    //{
+    //    let vw = v.try_write();
+    //    vw.unwrap()[0] = LispValue::T;
+    //}
+    //println!("{:#?}", v);
+    //}

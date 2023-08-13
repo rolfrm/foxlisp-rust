@@ -214,7 +214,7 @@ fn lisp_defun(ctx: &mut Stack, body: &LispValue) -> LispValue {
     };
     if let LispValue::Symbol(name) = name {
         ctx.global_scope
-            .set_global(*name, LispValue::LispFunction(Arc::new(f)));
+            .set_global(*name, LispValue::LispFunction(Rc::new(f)));
     } else {
         panic!("Not a symbol");
     }
