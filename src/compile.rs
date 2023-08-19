@@ -3,15 +3,15 @@ use crate::*;
 pub fn lisp_compile(code: &LispValue, w: &mut CodeWriter) {
     
     match code {
-        LispValue::Cons(a, b) => {
-            if let LispValue::Symbol(s1) = a.as_ref() {
+        LispValue::Cons(a) => {
+            if let LispValue::Symbol(s1) = a.0 {
 
-                let namecode = w.ctx.global_names[*s1 as usize];
+                let namecode = w.ctx.global_names[s1 as usize];
                 let name = &w.ctx.symbol_name_lookup[namecode];
                 println!("Name code: {}", name);
                 if name.eq("set!") {
-                    if let LispValue::Symbol(name) = car(&b) {
-                        let value = cadr(&b);
+                    if let LispValue::Symbol(name) = car(&a.1) {
+                        let value = cadr(&a.1);
                         lisp_compile(value, w);
                         w.emit(ByteCode::SetSym);
                         w.emit_uleb(name);
@@ -21,10 +21,10 @@ pub fn lisp_compile(code: &LispValue, w: &mut CodeWriter) {
 
                 if name.eq("defvar") {
 
-                    let value = cadr(&b);
+                    let value = cadr(&a.1);
                     lisp_compile(value, w);
                     w.emit(ByteCode::DefVar);
-                    let sym = car(&b);
+                    let sym = car(&a.1);
                     if let LispValue::Symbol(symi) = sym {
                         w.emit_uleb(*symi);
                     }else {
@@ -35,9 +35,9 @@ pub fn lisp_compile(code: &LispValue, w: &mut CodeWriter) {
                 if name.eq("if") {
                     
                     // fetch all the arguments
-                    let check = car(b);
-                    let then = cadr(b);
-                    let _else = caddr(b);
+                    let check = car(&a.1);
+                    let then = cadr(&a.1);
+                    let _else = caddr(&a.1);
 
 
                     lisp_compile(check, w);
@@ -73,13 +73,13 @@ pub fn lisp_compile(code: &LispValue, w: &mut CodeWriter) {
                 if name.eq("loop") {
                     println!("Compiling loop!");
                     let offset1 = w.offset();
-                    let check = car(b);
+                    let check = car(&a.1);
                     lisp_compile(check, w);
                     w.emit(ByteCode::IsNil);
                     w.emit(ByteCode::CondJmp);
                     let mut check_code = w.bytes.drain(offset1..).as_slice().to_vec();
                     
-                    let body = cdr(b);
+                    let body = cdr(&a.1);
                     for x in body.to_iter() {
                         lisp_compile(x, w);
                         w.emit(ByteCode::Drop);
@@ -127,13 +127,13 @@ pub fn lisp_compile(code: &LispValue, w: &mut CodeWriter) {
                 }
 
                 let mut argcount :u32 = 0;
-                for arg in b.to_iter() {
+                for arg in a.1.to_iter() {
                     lisp_compile(arg, w);
                     argcount += 1;
                     
                 }
                 
-                if let LispValue::Symbol(name) = a.as_ref() {
+                if let LispValue::Symbol(name) = a.0 {
                     
                     w.emit(ByteCode::Call);
                     w.emit_uleb(argcount as u128);
@@ -236,7 +236,7 @@ fn lisp_eval_bytecode(code : &mut CodeReader, stk: &mut LispContext){
                 };
                 stk.arg_stack.push(v);
 
-            }else{
+            }else{  
                 panic!("Not a function!");
             }
         },

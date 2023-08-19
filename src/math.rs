@@ -1,4 +1,4 @@
-use std::f64::consts::PI;
+use std::{f64::consts::PI, rc::Rc};
 
 use crate::{LispContext, LispValue, car, cadr, Stack, is_nil, lisp_raise_error};
 use num::{self, BigInt, BigRational, FromPrimitive, ToPrimitive, traits::AsPrimitive, integer::Roots, rational::Ratio};
@@ -61,25 +61,25 @@ fn apply_number_func(func: &NumericFunc, a: &LispValue, b: &LispValue) -> LispVa
             if let Some(x) = (func.f_int)(*x, *y) {
                 return LispValue::Integer(x);
             }
-            return LispValue::BigInt((func.f_bigint)(
+            return LispValue::BigInt(Rc::new((func.f_bigint)(
                 &BigInt::from_i64(*x).unwrap(),
                 &BigInt::from_i64(*y).unwrap(),
-            ));
+            )));
         }
         if let LispValue::Rational(y) = b {
             return LispValue::Rational((func.f_f64)(*x as f64, *y));
         }
         if let LispValue::BigInt(y) = &b {
-            return handler_underflow(LispValue::BigInt((func.f_bigint)(
+            return handler_underflow(LispValue::BigInt(Rc::new((func.f_bigint)(
                 &num::BigInt::from(*x),
                 y,
-            )));
+            ))));
         }
         if let LispValue::BigRational(y) = &b {
-            return LispValue::BigRational((func.f_bigrational)(
+            return LispValue::BigRational(Rc::new((func.f_bigrational)(
                 &num::BigRational::from_i64(*x).unwrap(),
                 y,
-            ));
+            )));
         }
     }
     if let LispValue::Rational(x) = a {
@@ -90,60 +90,60 @@ fn apply_number_func(func: &NumericFunc, a: &LispValue, b: &LispValue) -> LispVa
             return LispValue::Rational((func.f_f64)(*x, *y));
         }
         if let LispValue::BigInt(y) = &b {
-            return LispValue::BigRational((func.f_bigrational)(
+            return LispValue::BigRational(Rc::new((func.f_bigrational)(
                 &num::BigRational::from_f64(*x).unwrap(),
-                &num::BigRational::from(y.clone()),
-            ));
+                &num::BigRational::from(y.as_ref().clone()),
+            )));
         }
         if let LispValue::BigRational(y) = &b {
-            return LispValue::BigRational((func.f_bigrational)(
+            return LispValue::BigRational(Rc::new((func.f_bigrational)(
                 &num::BigRational::from_f64(*x).unwrap(),
                 y,
-            ));
+            )));
         }
     }
     if let LispValue::BigInt(x) = &a {
         if let LispValue::Integer(y) = b {
-            return LispValue::BigRational((func.f_bigrational)(
-                &BigRational::from(x.clone()),
+            return LispValue::BigRational(Rc::new((func.f_bigrational)(
+                &BigRational::from(x.as_ref().clone()),
                 &BigRational::from_i64(*y).unwrap(),
-            ));
+            )));
         }
         if let LispValue::Rational(y) = b {
-            return LispValue::BigRational((func.f_bigrational)(
-                &BigRational::from(x.clone()),
+            return LispValue::BigRational(Rc::new((func.f_bigrational)(
+                &BigRational::from(x.as_ref().clone()),
                 &BigRational::from_f64(*y).unwrap(),
-            ));
+            )));
         }
         if let LispValue::BigInt(y) = &b {
-            return handler_underflow(LispValue::BigInt((func.f_bigint)(x, y)));
+            return handler_underflow(LispValue::BigInt(Rc::new((func.f_bigint)(x.as_ref(), y.as_ref()))));
         }
         if let LispValue::BigRational(y) = &b {
-            return LispValue::BigRational((func.f_bigrational)(
-                &num::BigRational::from(x.clone()),
+            return LispValue::BigRational(Rc::new((func.f_bigrational)(
+                &num::BigRational::from(x.as_ref().clone()),
                 y,
-            ));
+            )));
         }
     }
 
     if let LispValue::BigRational(x) = &a {
         if let LispValue::Integer(y) = b {
-            return LispValue::BigRational((func.f_bigrational)(
+            return LispValue::BigRational(Rc::new((func.f_bigrational)(
                 x,
                 &BigRational::from_i64(*y).unwrap(),
-            ));
+            )));
         }
         if let LispValue::Rational(y) = b {
-            return LispValue::BigRational((func.f_bigrational)(
+            return LispValue::BigRational(Rc::new((func.f_bigrational)(
                 x,
                 &BigRational::from_f64(*y).unwrap(),
-            ));
+            )));
         }
         if let LispValue::BigInt(y) = &b {
-            return LispValue::BigRational((func.f_bigrational)(x, &BigRational::from(y.clone())));
+            return LispValue::BigRational(Rc::new((func.f_bigrational)(x, &BigRational::from(y.as_ref().clone()))));
         }
         if let LispValue::BigRational(y) = &b {
-            return LispValue::BigRational((func.f_bigrational)(x, y));
+            return LispValue::BigRational(Rc::new((func.f_bigrational)(x, y)));
         }
     }
     return LispValue::Nil;
@@ -190,7 +190,7 @@ fn lisp_sqrt(v : LispValue) -> LispValue {
         LispValue::Rational(r) => LispValue::Rational(r.sqrt()),
         LispValue::BigRational(br) => {
             let half = Ratio::new(BigInt::from(1), BigInt::from(2));
-            let r = br.clone();
+            let r = br.as_ref().clone();
             let mut x = r.clone();
             for _ in 0..10 {
                 
@@ -198,18 +198,18 @@ fn lisp_sqrt(v : LispValue) -> LispValue {
                 x = xn;
             }   
 
-            return LispValue::BigRational(x);
+            return LispValue::BigRational(Rc::new(x));
         }
-        LispValue::BigInt(i) => LispValue::BigInt(i.sqrt()),
+        LispValue::BigInt(i) => LispValue::BigInt(Rc::new(i.sqrt())),
         _ => LispValue::Nil,
     }
 }
 fn lisp_bigrational(v: LispValue) -> LispValue {
     match v {
-        LispValue::Integer(i) => LispValue::BigRational(num::BigRational::from_i64(i).unwrap()),
-        LispValue::Rational(r) => LispValue::BigRational(num::BigRational::from_f64(r).unwrap()),
+        LispValue::Integer(i) => LispValue::BigRational(Rc::new(num::BigRational::from_i64(i).unwrap())),
+        LispValue::Rational(r) => LispValue::BigRational(Rc::new(num::BigRational::from_f64(r).unwrap())),
         LispValue::BigRational(_) => v,
-        LispValue::BigInt(i) => LispValue::BigRational(num::BigRational::from(i)),
+        LispValue::BigInt(i) => LispValue::BigRational(Rc::new(num::BigRational::from(i.as_ref().clone()))),
         _ => LispValue::Nil,
     }
 }

@@ -51,7 +51,7 @@ struct TempIndex {
 }
 
 pub enum LispValue {
-    Cons(Rc<LispValue>, Rc<LispValue>),
+    Cons(Rc<(LispValue, LispValue)>),
     Nil,
     T,
     Rest,
@@ -59,8 +59,8 @@ pub enum LispValue {
     Rational(f64),
     Integer(i64),
     Symbol(i32),
-    BigInt(num::BigInt),
-    BigRational(num::BigRational),
+    BigInt(Rc<num::BigInt>),
+    BigRational(Rc<num::BigRational>),
     NativeFunction(NativeFunc),
     Macro(fn(&mut Stack, &LispValue) -> LispValue),
     LispFunction(Rc<LispFunc>),
@@ -80,7 +80,7 @@ impl Default for LispValue {
 impl Clone for LispValue {
     fn clone(&self) -> Self {
         match self {
-            LispValue::Cons(a, b) => LispValue::Cons(a.clone(), b.clone()),
+            LispValue::Cons(a) => LispValue::Cons(a.clone()),
             LispValue::Nil => LispValue::Nil,
             LispValue::String(s) => LispValue::String(s.clone()),
             LispValue::BigInt(b) => LispValue::BigInt(b.clone()),
@@ -137,7 +137,7 @@ impl LispValue {
         LispValue::Macro(item)
     }
     pub fn cons(a: LispValue, b: LispValue) -> LispValue {
-        LispValue::Cons(Rc::new(a), Rc::new(b))
+        LispValue::Cons(Rc::new((a,b)))
     }
     pub fn to_iter<'a>(&'a self) -> ConsIter<'a> {
         ConsIter { current: self }
@@ -147,9 +147,9 @@ impl LispValue {
 impl PartialEq for LispValue {
     fn eq(&self, other: &Self) -> bool {
         match self {
-            LispValue::Cons(a0, b0) => {
-                if let LispValue::Cons(a, b) = other {
-                    return a == a0 && b == b0;
+            LispValue::Cons(a0) => {
+                if let LispValue::Cons(a) = other {
+                    return a == a0;
                 }
                 return false;
             }
@@ -209,14 +209,10 @@ impl PartialEq for LispValue {
 impl PartialOrd for LispValue {
     fn partial_cmp(&self, other: &LispValue) -> Option<Ordering> {
         match self {
-            LispValue::Cons(a, b) => {
-                if let LispValue::Cons(a2, b2) = other {
-                    let c1 = a.partial_cmp(&a2); // b.partial_cmp(&b2);
-                    if let Some(o) = c1 {
-                        if let Ordering::Equal = o {
-                            return b.partial_cmp(&b2);
-                        }
-                    }
+            LispValue::Cons(a) => {
+                if let LispValue::Cons(a2) = other {
+                    let c1 = a.partial_cmp(&a2); 
+                    
                     return c1;
                 }
                 return None;
@@ -276,9 +272,9 @@ impl PartialOrd for LispValue {
 impl LispValue {
     fn equals(&self, other: &Self) -> bool {
         match self {
-            LispValue::Cons(a, b) => {
+            LispValue::Cons(a) => {
                 return match other {
-                    LispValue::Cons(a2, b2) => a.equals(a2) && b.equals(b2),
+                    LispValue::Cons(a2) => a.0.equals(&a2.0) && a.1.equals(&a2.1),
                     _ => false,
                 }
             }
@@ -365,7 +361,7 @@ impl From<i64> for LispValue {
 }
 impl From<num::BigInt> for LispValue {
     fn from(item: num::BigInt) -> Self {
-        LispValue::BigInt(item)
+        LispValue::BigInt(Rc::new(item))
     }
 }
 impl From<String> for LispValue {
@@ -416,7 +412,7 @@ impl TryInto<i64> for LispValue {
 impl fmt::Display for LispValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
-            LispValue::Cons(_, _) => {
+            LispValue::Cons(a) => {
                 let mut it = &*self;
                 write!(f, "(").unwrap();
                 let mut first = true;
@@ -522,9 +518,9 @@ impl<'a> Iterator for ConsIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let current = self.current;
         match current {
-            LispValue::Cons(a, b) => {
-                let res = &a;
-                self.current = &b;
+            LispValue::Cons(a) => {
+                let res = &a.0;
+                self.current = &a.1;
                 return Some(res);
             }
             _ => return None,
@@ -851,8 +847,8 @@ fn lisp_eval<'a>(ctx: &'a mut Stack, v: &'a LispValue) -> LispValue {
         return LispValue::Nil;
     }
     match v {
-        LispValue::Cons(a, b) => {
-            let value = lisp_eval(ctx, a);
+        LispValue::Cons(a) => {
+            let value = lisp_eval(ctx, &a.0);
 
             match value {
                 LispValue::NativeFunction(n) => {
