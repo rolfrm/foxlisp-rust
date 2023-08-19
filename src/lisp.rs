@@ -33,14 +33,14 @@ pub fn lisp_not(a: &LispValue) -> &LispValue {
 
 pub fn car(lisp: &LispValue) -> &LispValue {
     match lisp {
-        LispValue::Cons(c) => &c.0,
+        LispValue::Cons(a, _) => &a,
         _ => &LispValue::Nil,
     }
 }
 
 pub fn cdr(lisp: &LispValue) -> &LispValue {
     match lisp {
-        LispValue::Cons(c) => &c.1,
+        LispValue::Cons(_,b) => &b,
         _ => &LispValue::Nil,
     }
 }
@@ -89,7 +89,7 @@ pub fn is_nil(a: &LispValue) -> bool {
 
 pub fn is_cons(a: &LispValue) -> bool {
     match a {
-        LispValue::Cons(_) => true,
+        LispValue::Cons(_,_) => true,
         _ => false,
     }
 }
