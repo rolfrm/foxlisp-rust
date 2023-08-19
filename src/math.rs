@@ -1,3 +1,5 @@
+use std::f64::consts::PI;
+
 use crate::{LispContext, LispValue, car, cadr, Stack, is_nil, lisp_raise_error};
 use num::{self, BigInt, BigRational, FromPrimitive, ToPrimitive, traits::AsPrimitive, integer::Roots, rational::Ratio};
 
@@ -255,5 +257,6 @@ pub fn lisp_math_load(ctx: &mut LispContext) {
     ctx.set_global_str("big-rational", LispValue::from_1(lisp_bigrational));
     ctx.set_global_str("float", LispValue::from_1(lisp_float));
     ctx.set_global_str("decf", LispValue::from_macro(lisp_decf));
+    ctx.set_global_str("pi", LispValue::Rational(PI));
 
 }

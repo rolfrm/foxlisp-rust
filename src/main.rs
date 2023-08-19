@@ -20,6 +20,8 @@ use parser::*;
 mod code_reader_writer;
 use code_reader_writer::*;
 
+mod compile;
+
 #[derive(Clone)]
 pub enum NativeFunc {
     Function1(fn(LispValue) -> LispValue),
@@ -843,40 +845,6 @@ fn lisp_eval_lisp_function<'a>(ctx: &mut Stack, func: &LispFunc, args: &'a LispV
 }
 
 
-
-
-
-fn lisp_compile(code: &LispValue, w: &mut CodeWriter) {
-    match code {
-        LispValue::Cons(a, b) => {
-            let s = w.ctx.find_symbol("set!");
-            if s.eq(&a) {
-                if let LispValue::Symbol(name) = car(&b) {
-                    let value = cadr(&b);
-                    lisp_compile(value, w);
-                    w.emit(ByteCode::SetSym);
-                    w.emit_uleb(name);
-                }
-            }
-            lisp_compile(&b, w);
-            if let LispValue::Symbol(name) = a.as_ref() {
-                w.emit(ByteCode::Call);
-                w.emit_uleb(name);
-            }
-        }
-        LispValue::Nil => {
-            w.emit(ByteCode::Nil);
-        }
-        LispValue::Symbol(s) => {
-            w.emit(ByteCode::LdSym);
-            w.emit_uleb(s);
-        }
-        _ => {
-            todo!();
-        }
-    }
-}
-
 fn lisp_eval<'a>(ctx: &'a mut Stack, v: &'a LispValue) -> LispValue {
     if let Some(e) = &ctx.error {
         ctx.error = Some(LispValue::String(format!("{}\nat {}", e, v)));
@@ -1098,7 +1066,7 @@ mod test {
 
     #[test]
     fn test_code_builder() {
-        let mut ctx = Rc::new(lisp_load_basic());
+        let ctx = lisp_load_basic();
 
         let mut wd = CodeWriter::new(ctx);
         let bignumber :u128 = 111222333444555666777888999000111222333;

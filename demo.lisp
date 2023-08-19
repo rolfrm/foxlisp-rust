@@ -11,3 +11,5 @@
 (println (pow 2.0 0.25))
 (println (* 1 (sqrt (big-rational 2))))
 (println (sqrt 2.0))
+(defvar x 100)
+(loop (< x 15000000) (set! x (+ x 1)))

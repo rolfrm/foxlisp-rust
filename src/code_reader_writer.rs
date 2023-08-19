@@ -50,7 +50,7 @@ impl u128able for u128 {
 
 
 pub struct CodeWriter {
-    pub ctx: Rc<LispContext>,
+    pub ctx: LispContext,
     pub bytes: Vec<u8>,
 }
 
@@ -60,11 +60,18 @@ pub struct CodeReader {
 }
 
 impl CodeReader {
+    
+    pub fn end(&self) -> bool {
+        self.bytes.len() <= self.offset
+    }
     pub fn new(bytes: Vec<u8>) -> CodeReader {
         CodeReader {
             bytes: bytes,
             offset: 0,
         }
+    }
+    pub fn jmp(&mut self, amount: i64){
+        self.offset = (self.offset as i64 + amount) as usize;
     }
     pub fn read_u8(&mut self) -> u8 {
         let i = self.offset;
@@ -138,15 +145,19 @@ impl CodeReader {
 }
 
 impl CodeWriter {
-    pub fn new(ctx: Rc<LispContext>) -> CodeWriter {
+    pub fn new(ctx: LispContext) -> CodeWriter {
         CodeWriter {
-            ctx: ctx.clone(),
+            ctx: ctx,
             bytes: Vec::new(),
         }
     }
 
     pub fn to_reader(self) -> CodeReader{
         CodeReader::new(self.bytes)
+    }
+
+    pub fn offset(&self) -> usize {
+        self.bytes.len()
     }
 
     pub fn emit(&mut self, byte_code: ByteCode) {

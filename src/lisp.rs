@@ -63,9 +63,15 @@ pub fn cadddr(lisp: &LispValue) -> &LispValue {
     return car(cdddr(lisp));
 }
 
-fn lisp_print(v: LispValue) -> LispValue {
-    println!("{}", v);
-    return v;
+fn lisp_print(v: &[LispValue]) -> LispValue {
+    for x in v {
+        print!("{} ", x);
+    }
+    println!("");
+    if v.len() == 0 {
+        return LispValue::Nil;
+    }
+    return v[0].clone();
 }
 
 fn lisp_conss(v: Vec<LispValue>) -> LispValue {
@@ -305,7 +311,7 @@ fn lisp_handle_error(ctx: &mut Stack, body: &LispValue) -> LispValue{
 pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str(
         "println",
-        LispValue::NativeFunction(NativeFunc::Function1(lisp_print)),
+        LispValue::NativeFunction(NativeFunc::FunctionNr(lisp_print)),
     );
     ctx.set_global_str("cons", LispValue::from_2(lisp_cons));
     ctx.set_global_str("car", LispValue::from_1r(car));

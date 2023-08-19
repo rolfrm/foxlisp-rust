@@ -216,6 +216,12 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
             *value = LispValue::T;
             return Some(next);
         }
+
+        if let Some(next) = parse_token(code2, "nil") {
+            *value = LispValue::Nil;
+            return Some(next);
+        }
+
         if let Some(next) = parse_token(code2, "&rest") {
             *value = LispValue::Rest;
             return Some(next);
