@@ -142,6 +142,23 @@ impl LispValue {
     pub fn to_iter<'a>(&'a self) -> ConsIter<'a> {
         ConsIter { current: self }
     }
+
+    pub fn to_integer(&self) -> Option<i64> {
+        match self {
+            LispValue::Rational(x) => x.to_i64(),
+            LispValue::Integer(x) => Some(*x),
+            LispValue::BigInt(x) => x.to_i64(),
+            LispValue::BigRational(x) => x.to_i64(),
+            _ => None
+        }
+    }
+    pub fn to_symbol_id(&self) -> Option<i32> {
+        match self {
+            LispValue::Symbol(s) => Some(*s),
+            _ => None
+        }
+    }
+
 }
 
 impl PartialEq for LispValue {
@@ -493,6 +510,23 @@ impl LispContext {
         stk.error
     }
 }
+
+pub trait LispSymbolName {
+    fn symbol_name(&self, ctx: &LispContext) -> String;
+}
+
+impl LispSymbolName for i32 {
+    fn symbol_name(&self, ctx: &LispContext) -> String {
+        ctx.symbol_name_lookup.get(*self as usize).unwrap().clone()
+    }
+}
+
+impl LispSymbolName for LispValue {
+    fn symbol_name(&self, ctx: &LispContext) -> String {
+        ctx.symbol_name_lookup.get(self.to_symbol_id().unwrap() as usize).unwrap().clone()
+    }
+}
+
 
 #[derive(Debug)]
 pub struct LispScope<'a> {
@@ -1060,29 +1094,7 @@ mod test {
         assert!(stk.error.is_none());
     }
 
-    #[test]
-    fn test_code_builder() {
-        let ctx = lisp_load_basic();
-
-        let mut wd = CodeWriter::new(ctx);
-        let bignumber :u128 = 111222333444555666777888999000111222333;
-        let bignumber2 :i128 = -111222333444555666777888999000111222333;
-        wd.emit(ByteCode::LdSym);
-        wd.emit_uleb(bignumber);
-        wd.emit(ByteCode::LdSym);
-        wd.emit_sleb(bignumber2);
-        wd.emit(ByteCode::SetSym);
-        wd.emit_uleb(303);
-        println!("{:?}", wd.bytes);
-
-        let mut reader = wd.to_reader();
-        let sym1 = reader.read_u8();
-        let val1 = reader.read_uleb_u128();
-        let sym2 = reader.read_u8();
-        let val2 = reader.read_sleb_i128();
-        assert_eq!(bignumber,val1);
-        println!("{} {}   {} {}", sym1, val1, sym2, val2);
-    }
+ 
 }
 //#[cfg(test)]
 //#[test]

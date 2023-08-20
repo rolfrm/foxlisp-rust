@@ -18,9 +18,9 @@ fn parse_integer<'a>(code0: &'a [u8], val: &mut i64) -> Option<&'a [u8]> {
     return Option::Some(code);
 }
 
-fn skip_line(code: &[u8]) -> &[u8]{
+fn skip_line(code: &[u8]) -> &[u8] {
     let mut code2 = code;
-    
+
     while code2.len() > 0 && code2[0] != b'\n' {
         code2 = &code2[1..];
     }
@@ -33,7 +33,7 @@ fn skip_line(code: &[u8]) -> &[u8]{
 fn is_whitespace(c: u8) -> bool {
     match c {
         b' ' | b'\n' | b'\t' | b'\r' => true,
-        _ => false
+        _ => false,
     }
 }
 
@@ -45,7 +45,7 @@ fn skip_whitespace_and_comment(code: &[u8]) -> &[u8] {
         }
         if code2.len() > 0 && code2[0] == b';' {
             code2 = skip_line(code2);
-        }else{
+        } else {
             break;
         }
     }
@@ -83,25 +83,22 @@ fn is_token_end(c: u8) -> bool {
     return is_whitespace(c) || c == b'(' || c == b')';
 }
 
-fn parse_token<'a>(
-    code0: &'a [u8],
-    token: &str) -> Option<&'a [u8]> {
-        let b = token.as_bytes();
-        let l = b.len();
-        if code0.len() < l {
-            return None;
-        }
-        for i in 0..l {
-            if b[i] != code0[i] {
-                return None;
-            }
-        }
-        if code0.len() == l || is_token_end(code0[l]) {
-            return Some(&code0[l..]);
-        }
+fn parse_token<'a>(code0: &'a [u8], token: &str) -> Option<&'a [u8]> {
+    let b = token.as_bytes();
+    let l = b.len();
+    if code0.len() < l {
         return None;
     }
-
+    for i in 0..l {
+        if b[i] != code0[i] {
+            return None;
+        }
+    }
+    if code0.len() == l || is_token_end(code0[l]) {
+        return Some(&code0[l..]);
+    }
+    return None;
+}
 
 fn parse_symbol<'a>(
     ctx: &mut LispContext,
@@ -111,11 +108,7 @@ fn parse_symbol<'a>(
     let mut code = code0;
     let mut len = 0;
 
-    while code.len() > 0
-        && code[0] != b')'
-        && code[0] != b'('
-        && !is_whitespace(code[0])
-    {
+    while code.len() > 0 && code[0] != b')' && code[0] != b'(' && !is_whitespace(code[0]) {
         code = &code[1..];
         len += 1;
     }
@@ -177,7 +170,7 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
     }
 
     if code2[0] == b'"' {
-        let mut str : Vec<u8> = Vec::new();
+        let mut str: Vec<u8> = Vec::new();
         let mut code3 = &code2[1..];
         let mut finished = false;
         loop {
@@ -203,7 +196,7 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
             *value = LispValue::String(String::from_utf8(str).unwrap());
             return Some(code3);
         }
-        
+
         return None;
     }
 
@@ -252,5 +245,35 @@ pub fn parse_bytes(ctx: &mut LispContext, code: &mut &[u8]) -> Option<LispValue>
         Some(v)
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use crate::{*};
+
+    #[test]
+    fn test_code_builder() {
+        let ctx = lisp_load_basic();
+
+        let mut wd = CodeWriter::new();
+        let bignumber: u128 = 111222333444555666777888999000111222333;
+        let bignumber2: i128 = -111222333444555666777888999000111222333;
+        wd.emit(ByteCode::LdSym);
+        wd.emit_uleb(bignumber);
+        wd.emit(ByteCode::LdSym);
+        wd.emit_sleb(bignumber2);
+        wd.emit(ByteCode::SetSym);
+        wd.emit_uleb(303);
+        println!("{:?}", wd.bytes);
+
+        let mut reader = wd.to_reader();
+        let sym1 = reader.read_u8();
+        let val1 = reader.read_uleb_u128();
+        let sym2 = reader.read_u8();
+        let val2 = reader.read_sleb_i128();
+        assert_eq!(bignumber, val1);
+        println!("{} {}   {} {}", sym1, val1, sym2, val2);
     }
 }

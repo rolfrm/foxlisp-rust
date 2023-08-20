@@ -50,7 +50,6 @@ impl u128able for u128 {
 
 
 pub struct CodeWriter {
-    pub ctx: LispContext,
     pub bytes: Vec<u8>,
 }
 
@@ -71,6 +70,9 @@ impl CodeReader {
         }
     }
     pub fn jmp(&mut self, amount: i64){
+        if (self.offset as i64) + amount < 0 {
+            panic!("Invalid jump {} > {}", self.offset, amount);
+        }
         self.offset = (self.offset as i64 + amount) as usize;
     }
     pub fn read_u8(&mut self) -> u8 {
@@ -145,9 +147,8 @@ impl CodeReader {
 }
 
 impl CodeWriter {
-    pub fn new(ctx: LispContext) -> CodeWriter {
+    pub fn new() -> CodeWriter {
         CodeWriter {
-            ctx: ctx,
             bytes: Vec::new(),
         }
     }
