@@ -213,10 +213,11 @@ fn lisp_defun(ctx: &mut Stack, body: &LispValue) -> LispValue {
     }
 
     let f = LispFunc {
-        code: Box::new(code.clone()),
+        code: code.clone(),
         args_names: arg_names,
         magic: false,
-        variadic: variadic
+        variadic: variadic,
+        compiled_code: Vec::new()
     };
     if let LispValue::Symbol(name) = name {
         ctx.global_scope

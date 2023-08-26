@@ -53,6 +53,7 @@ pub struct CodeWriter {
     pub bytes: Vec<u8>,
 }
 
+#[derive(Debug)]
 pub struct CodeReader {
     pub bytes: Vec<u8>,
     pub offset: usize,

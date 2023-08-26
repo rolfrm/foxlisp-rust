@@ -12,6 +12,10 @@ pub enum ByteCode {
     Jmp = 9,
     LdT = 10,
     Drop = 11,
+    Return = 12,
+    Defun = 13,
+    Let = 14,
+    DropScope = 15
 }
 
 pub trait ToByteCode {
@@ -32,7 +36,11 @@ impl ToByteCode for u8 {
             9 => ByteCode::Jmp,
             10 => ByteCode::LdT,
             11 => ByteCode::Drop,
-            _ => panic!("Invalid upcode"),
+            12 => ByteCode::Return,
+            13 => ByteCode::Defun,
+            14 => ByteCode::Let,
+            15 => ByteCode::DropScope,
+            _ => panic!("Invalid upcode {}", self),
         }
     }
     
