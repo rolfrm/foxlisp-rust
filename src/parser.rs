@@ -222,7 +222,7 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
         if let Some(sym) = parse_symbol(ctx, code2, value) {
             if keyword {
                 if let LispValue::Symbol(x) = value {
-                    ctx.set_value(*x, value);
+                    ctx.set_value(*x, value.clone());
                 }
             }
             return Some(sym);

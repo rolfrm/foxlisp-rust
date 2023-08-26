@@ -526,6 +526,12 @@ impl LetScope {
         }
         return None;
     }
+    pub fn get_arg_offset(&self, symid : i32) -> Option<usize> {
+        if self.sym == symid {
+            return Some(self.argoffset);
+        }
+        return None;
+    }
 }
 
 #[derive(Debug)]
@@ -540,6 +546,16 @@ impl LispScope2 {
     pub fn new(f :  Rc<LispFunc>, argoffset: usize, reader: CodeReader) -> LispScope2 {
         LispScope2 { func: f, argoffset, parent: None, reader: reader}
     }
+    pub fn get_arg_offset(&self, symid: i32) -> Option<usize> {
+        for i in 0..self.func.args_names.len() {
+            
+            if self.func.args_names[i] == symid {
+                return Some(self.argoffset + i);
+            }
+        }
+        return None;
+    }
+    
     pub fn get_value<'a>(&self, ctx: &'a LispContext, symid: i32) -> Option<&'a LispValue>{
         for i in 0..self.func.args_names.len() {
             if self.func.args_names[i] == symid {
@@ -731,7 +747,7 @@ impl<'a> Stack<'a> {
                 return;
             }
         }
-        self.global_scope.set_value(symbol_name, value)
+        self.global_scope.set_value(symbol_name, value.clone());
     }
 }
 
@@ -821,23 +837,31 @@ impl<'a> LispContext {
     }
 
     fn get_value(&self, symid: i32) -> Option<&LispValue> {
-        for x in self.current_scope.iter() {
-            let r = match x {
-                ScopeType::FunctionScope(f) => f.get_value(self, symid),
-                ScopeType::LetScope(l) => l.get_value(self, symid),
-            };
-            if let Some(x) = r {
-                return r;
-            }
+        let place = self.current_scope.iter().rev().flat_map(|x| match x {
+            ScopeType::FunctionScope(f) => f.get_arg_offset(symid),
+            ScopeType::LetScope(v) => v.get_arg_offset(symid),
+
+        }).nth(0);
+        
+        if let Some(i) = place {
+            return Some(&self.arg_stack[i]);
         }
-        let r = self.get_global(symid);
-        if let Some(x) = r {
-            return Some(x);
-        }
-        return None;
+        return self.get_global(symid);
     }
-    fn set_value(&mut self, symbol_name: i32, value: &LispValue) {
-        self.set_global(symbol_name, value.clone())
+
+    fn set_value(&mut self, symid: i32, v: LispValue) -> bool {
+        let place = self.current_scope.iter().rev().flat_map(|x| match x {
+            ScopeType::FunctionScope(f) => f.get_arg_offset(symid),
+            ScopeType::LetScope(v) => v.get_arg_offset(symid),
+        }).nth(0);
+
+        if let Some(i) = place {
+            self.arg_stack[i] = v;
+            return true;
+        }
+        self.set_global(symid, v);
+        return true;
+        
     }
 }
 

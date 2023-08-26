@@ -158,7 +158,7 @@ pub fn lisp_compile(ctx: &mut LispContext, code: &LispValue, w: &mut CodeWriter)
                 if name.eq("let") {
                     let without_let = &a.1;
                     let args = car(&without_let);
-                    let let_body = cadr(without_let);
+                    let let_body = cdr(without_let);
                     let mut cnt = 0;
                     println!("let: {}", args);
                     for arg in args.to_iter() {
@@ -176,8 +176,15 @@ pub fn lisp_compile(ctx: &mut LispContext, code: &LispValue, w: &mut CodeWriter)
                             return Err(CompileError::ArgumentError(arg.clone()));
                         }
                     }
-
-                    lisp_compile(ctx, let_body, w)?;
+                    let mut first = true;
+                    for i in let_body.to_iter(){
+                        if first {
+                            first = false;
+                        }else{
+                            w.emit(ByteCode::Drop);
+                        }
+                       lisp_compile(ctx, i, w)?;
+                    }
                     w.emit(ByteCode::DropScope);
                     w.emit_uleb(cnt);
                     return Ok(());
@@ -320,13 +327,16 @@ fn lisp_eval_bytecode(stk: &mut LispContext) -> () {
             }
             ByteCode::LdSym => {
                 let symi = stk.read_uleb() as i32;
-                let r = stk.get_value(symi).clone().unwrap();
-                stk.arg_stack.push(r.clone());
+                let r = stk.get_value(symi).clone();
+                
+                stk.arg_stack.push(r.unwrap().clone());
             }
             ByteCode::SetSym => {
                 let symi = stk.read_uleb() as i32;
                 let value = stk.arg_stack.pop().unwrap();
-                stk.set_value(symi, &value);
+                stk.arg_stack.push(value.clone());
+                stk.set_value(symi, value);
+                
             }
             ByteCode::DefVar => {
                 let symi = stk.read_uleb() as i32;
@@ -446,17 +456,18 @@ fn lisp_eval_bytecode(stk: &mut LispContext) -> () {
 pub fn lisp_compile_and_eval_string(ctx: &mut LispContext, code: &str) -> LispValue {
     println!("");
     println!("code: {}", code);
-    let mut code = code.as_bytes();
+    let mut code_bytes = code.as_bytes();
     let mut result = LispValue::Nil;
 
     loop {
-        let c1 = parse_bytes(ctx, &mut code);
-
+        let b1 = code_bytes.len();
+        let c1 = parse_bytes(ctx, &mut code_bytes);
+        let b2 = code_bytes.len();
         if let Some(c) = c1 {
             let mut wd = CodeWriter::new();
 
             lisp_compile(ctx, &c, &mut wd).unwrap();
-            println!("bytes: {:?}", wd.bytes);
+            println!("bytes: {:?} {} {}", wd.bytes, b1, b2);
             lisp_bytecode_print(&mut CodeReader::new(wd.bytes.clone()), ctx);
 
             let mut code_reader = CodeReader::new(wd.bytes.clone());
@@ -481,6 +492,7 @@ pub fn lisp_compile_and_eval_string(ctx: &mut LispContext, code: &str) -> LispVa
             lisp_eval_bytecode(ctx);
             ctx.current_scope.pop();
             result = ctx.arg_stack.pop().unwrap();
+            //return result;
         } else {
             println!("Result: {}", result);
             return result;
@@ -533,6 +545,9 @@ mod test {
 
         let r = lisp_compile_and_eval_string(&mut ctx, "(let ((a 2) (b 3)) (let ((c 4) (d 5)) (+ a b c d)))").to_integer();
         assert_eq!(14, r.unwrap());
+        
+        let r = lisp_compile_and_eval_string(&mut ctx, "(let ((a 2) (b 3)) (set! a 5) (set! b 10) (- a b))").to_integer();
+        assert_eq!(-5, r.unwrap());
         
 
         let s1 = std::mem::size_of_val(&LispValue::Nil);
