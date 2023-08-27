@@ -104,7 +104,7 @@ fn lisp_loop(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let cond = car(body);
     let body = cdr(body);
     let mut result = LispValue::Nil;
-    
+
     while !is_nil(&lisp_eval(ctx, cond)) {
         for code in body.to_iter() {
             result = lisp_eval(ctx, code);
@@ -117,7 +117,7 @@ fn lisp_progn(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let mut result = LispValue::Nil;
     for code in body.to_iter() {
         result = lisp_eval(ctx, code);
-    } 
+    }
     return result;
 }
 
@@ -140,7 +140,7 @@ fn lisp_let_n<const N: usize>(ctx: &mut Stack, args: &LispValue, body: &LispValu
         parent: &ctx.local_scope,
     };
     let mut stack2 = Stack::new_local(ctx.global_scope, scope);
-    
+
     let result = lisp_progn(&mut stack2, body);
     ctx.error = stack2.error;
     return result;
@@ -196,16 +196,15 @@ fn lisp_defun(ctx: &mut Stack, body: &LispValue) -> LispValue {
             arg_names.push(*id);
         } else if let LispValue::Rest = car(it) {
             it = cdr(it);
-             if let LispValue::Symbol(restarg) = car(it) {
+            if let LispValue::Symbol(restarg) = car(it) {
                 arg_names.push(*restarg);
-             }else{
+            } else {
                 lisp_raise_error(ctx, "an argument name must follow &rest.".into());
-                return LispValue::Nil;     
-             }
-             variadic = true;
-             break;
-        }  
-        else {
+                return LispValue::Nil;
+            }
+            variadic = true;
+            break;
+        } else {
             lisp_raise_error(ctx, "unsupported defun argument.".into());
             return LispValue::Nil;
         }
@@ -217,7 +216,7 @@ fn lisp_defun(ctx: &mut Stack, body: &LispValue) -> LispValue {
         args_names: arg_names,
         magic: false,
         variadic: variadic,
-        compiled_code: Vec::new()
+        compiled_code: Vec::new(),
     };
     if let LispValue::Symbol(name) = name {
         ctx.global_scope
@@ -239,10 +238,9 @@ fn lisp_defvar(ctx: &mut Stack, body: &LispValue) -> LispValue {
 }
 
 fn lisp_quote(ctx: &mut Stack, body: &LispValue) -> LispValue {
-    if !is_nil(cdr(body)){
+    if !is_nil(cdr(body)) {
         lisp_raise_error(ctx, "quote may only take one argument!".into());
         return LispValue::Nil;
-        
     }
     return car(body).clone();
 }
@@ -268,7 +266,7 @@ pub fn lisp_eval_value(ctx: &mut Stack, body: &LispValue) -> LispValue {
     lisp_eval(ctx, car(body))
 }
 
-fn lisp_gt<'a>(a: &'a LispValue,b: &'a LispValue) -> &'a LispValue{
+fn lisp_gt<'a>(a: &'a LispValue, b: &'a LispValue) -> &'a LispValue {
     if let Some(x) = a.partial_cmp(b) {
         if x.is_gt() {
             return &LispValue::T;
@@ -277,7 +275,7 @@ fn lisp_gt<'a>(a: &'a LispValue,b: &'a LispValue) -> &'a LispValue{
     return &LispValue::Nil;
 }
 
-fn lisp_lt<'a>(a: &'a LispValue,b: &'a LispValue) -> &'a LispValue{
+fn lisp_lt<'a>(a: &'a LispValue, b: &'a LispValue) -> &'a LispValue {
     if let Some(x) = a.partial_cmp(b) {
         if x.is_lt() {
             return &LispValue::T;
@@ -286,7 +284,7 @@ fn lisp_lt<'a>(a: &'a LispValue,b: &'a LispValue) -> &'a LispValue{
     return &LispValue::Nil;
 }
 
-fn lisp_handle_error(ctx: &mut Stack, body: &LispValue) -> LispValue{
+fn lisp_handle_error(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let main = car(body);
     let handler = cadr(body);
     let r = lisp_eval(ctx, main);
@@ -297,12 +295,12 @@ fn lisp_handle_error(ctx: &mut Stack, body: &LispValue) -> LispValue{
             let local = LispScope {
                 id: &[*id],
                 values: &mut [err],
-            parent: &ctx.local_scope,
-        };
-        ctx.error = None;
-        let mut stack = Stack::new_local(ctx.global_scope, local);
-        return lisp_progn(&mut stack, handler_body);
-        }else{
+                parent: &ctx.local_scope,
+            };
+            ctx.error = None;
+            let mut stack = Stack::new_local(ctx.global_scope, local);
+            return lisp_progn(&mut stack, handler_body);
+        } else {
             lisp_raise_error(ctx, "First handler argument must be a symbol".into());
         }
     }

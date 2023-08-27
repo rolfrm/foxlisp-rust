@@ -1,6 +1,4 @@
-
 pub enum ByteCode {
-    
     // Load NIL on the stack.
     LdNil = 1,
     // Loads a variable value on the stack.
@@ -32,7 +30,7 @@ pub enum ByteCode {
     // drops a number of variables.
     DropScope = 15,
     // duplicates the top value on the stack.
-    Dup = 16
+    Dup = 16,
 }
 
 pub trait ToByteCode {
@@ -41,7 +39,7 @@ pub trait ToByteCode {
 
 impl ToByteCode for u8 {
     fn to_bytecode(&self) -> ByteCode {
-         match self {
+        match self {
             1 => ByteCode::LdNil,
             2 => ByteCode::LdSym,
             3 => ByteCode::SetSym,
@@ -61,5 +59,4 @@ impl ToByteCode for u8 {
             _ => panic!("Invalid upcode {}", self),
         }
     }
-    
 }

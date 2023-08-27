@@ -1,7 +1,10 @@
 use std::{f64::consts::PI, rc::Rc};
 
-use crate::{LispContext, LispValue, car, cadr, Stack, is_nil, lisp_raise_error};
-use num::{self, BigInt, BigRational, FromPrimitive, ToPrimitive, traits::AsPrimitive, integer::Roots, rational::Ratio};
+use crate::{cadr, car, is_nil, lisp_raise_error, LispContext, LispValue, Stack};
+use num::{
+    self, integer::Roots, rational::Ratio, traits::AsPrimitive, BigInt, BigRational, FromPrimitive,
+    ToPrimitive,
+};
 
 struct NumericFunc {
     f_f64: fn(f64, f64) -> f64,
@@ -44,7 +47,6 @@ static DIV_OP: NumericFunc = NumericFunc {
     f_bigint: |x, y| x / y,
     f_bigrational: |x, y| x / y,
 };
-
 
 fn handler_underflow(lv: LispValue) -> LispValue {
     if let LispValue::BigInt(v) = &lv {
@@ -116,7 +118,10 @@ fn apply_number_func(func: &NumericFunc, a: &LispValue, b: &LispValue) -> LispVa
             )));
         }
         if let LispValue::BigInt(y) = &b {
-            return handler_underflow(LispValue::BigInt(Rc::new((func.f_bigint)(x.as_ref(), y.as_ref()))));
+            return handler_underflow(LispValue::BigInt(Rc::new((func.f_bigint)(
+                x.as_ref(),
+                y.as_ref(),
+            ))));
         }
         if let LispValue::BigRational(y) = &b {
             return LispValue::BigRational(Rc::new((func.f_bigrational)(
@@ -140,7 +145,10 @@ fn apply_number_func(func: &NumericFunc, a: &LispValue, b: &LispValue) -> LispVa
             )));
         }
         if let LispValue::BigInt(y) = &b {
-            return LispValue::BigRational(Rc::new((func.f_bigrational)(x, &BigRational::from(y.as_ref().clone()))));
+            return LispValue::BigRational(Rc::new((func.f_bigrational)(
+                x,
+                &BigRational::from(y.as_ref().clone()),
+            )));
         }
         if let LispValue::BigRational(y) = &b {
             return LispValue::BigRational(Rc::new((func.f_bigrational)(x, y)));
@@ -184,7 +192,7 @@ fn lisp_div(v: &[LispValue]) -> LispValue {
 fn lisp_pow(v: &[LispValue]) -> LispValue {
     lisp_apply_numbers(&v, &POW_OP)
 }
-fn lisp_sqrt(v : LispValue) -> LispValue {
+fn lisp_sqrt(v: LispValue) -> LispValue {
     match v {
         LispValue::Integer(i) => LispValue::Integer(i.sqrt()),
         LispValue::Rational(r) => LispValue::Rational(r.sqrt()),
@@ -193,10 +201,9 @@ fn lisp_sqrt(v : LispValue) -> LispValue {
             let r = br.as_ref().clone();
             let mut x = r.clone();
             for _ in 0..10 {
-                
                 let xn = (&x + &r / &x) * &half;
                 x = xn;
-            }   
+            }
 
             return LispValue::BigRational(Rc::new(x));
         }
@@ -206,10 +213,16 @@ fn lisp_sqrt(v : LispValue) -> LispValue {
 }
 fn lisp_bigrational(v: LispValue) -> LispValue {
     match v {
-        LispValue::Integer(i) => LispValue::BigRational(Rc::new(num::BigRational::from_i64(i).unwrap())),
-        LispValue::Rational(r) => LispValue::BigRational(Rc::new(num::BigRational::from_f64(r).unwrap())),
+        LispValue::Integer(i) => {
+            LispValue::BigRational(Rc::new(num::BigRational::from_i64(i).unwrap()))
+        }
+        LispValue::Rational(r) => {
+            LispValue::BigRational(Rc::new(num::BigRational::from_f64(r).unwrap()))
+        }
         LispValue::BigRational(_) => v,
-        LispValue::BigInt(i) => LispValue::BigRational(Rc::new(num::BigRational::from(i.as_ref().clone()))),
+        LispValue::BigInt(i) => {
+            LispValue::BigRational(Rc::new(num::BigRational::from(i.as_ref().clone())))
+        }
         _ => LispValue::Nil,
     }
 }
@@ -226,10 +239,10 @@ fn lisp_decf(scope: &mut Stack, v: &LispValue) -> LispValue {
     let location = car(v);
     let amount = cadr(v);
     let mut amount2 = &LispValue::Integer(1);
-    if !is_nil(amount) { 
+    if !is_nil(amount) {
         amount2 = amount;
     }
-    
+
     if let LispValue::Symbol(loc) = location {
         let v = scope.get_value(*loc);
         if let Some(r) = v {
@@ -239,12 +252,11 @@ fn lisp_decf(scope: &mut Stack, v: &LispValue) -> LispValue {
             return result;
         }
     }
-    
+
     lisp_raise_error(scope, "error".into());
-    
+
     return LispValue::Nil;
 }
-
 
 pub fn lisp_math_load(ctx: &mut LispContext) {
     ctx.set_global_str("+", LispValue::from_nr(lisp_add));
@@ -253,10 +265,9 @@ pub fn lisp_math_load(ctx: &mut LispContext) {
     ctx.set_global_str("/", LispValue::from_nr(lisp_div));
     ctx.set_global_str("pow", LispValue::from_nr(lisp_pow));
     ctx.set_global_str("sqrt", LispValue::from_1(lisp_sqrt));
-    
+
     ctx.set_global_str("big-rational", LispValue::from_1(lisp_bigrational));
     ctx.set_global_str("float", LispValue::from_1(lisp_float));
     ctx.set_global_str("decf", LispValue::from_macro(lisp_decf));
     ctx.set_global_str("pi", LispValue::Rational(PI));
-
 }

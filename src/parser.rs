@@ -251,7 +251,7 @@ pub fn parse_bytes(ctx: &mut LispContext, code: &mut &[u8]) -> Option<LispValue>
 #[cfg(test)]
 mod test {
 
-    use crate::{*};
+    use crate::*;
 
     #[test]
     fn test_code_builder() {

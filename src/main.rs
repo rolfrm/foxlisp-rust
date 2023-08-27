@@ -48,14 +48,15 @@ pub struct LispFunc {
     variadic: bool,
 }
 
-impl LispFunc{
-    pub fn with_compled_code(&self, code : Vec<u8>) -> LispFunc {
-        LispFunc{code: self.code.clone(), 
-            compiled_code: code, 
-            args_names: self.args_names.clone(), 
+impl LispFunc {
+    pub fn with_compled_code(&self, code: Vec<u8>) -> LispFunc {
+        LispFunc {
+            code: self.code.clone(),
+            compiled_code: code,
+            args_names: self.args_names.clone(),
             magic: self.magic,
-             variadic: self.variadic
-             }
+            variadic: self.variadic,
+        }
     }
 }
 
@@ -146,7 +147,7 @@ impl LispValue {
         LispValue::Macro(item)
     }
     pub fn cons(a: LispValue, b: LispValue) -> LispValue {
-        LispValue::Cons(Rc::new((a,b)))
+        LispValue::Cons(Rc::new((a, b)))
     }
     pub fn to_iter<'a>(&'a self) -> ConsIter<'a> {
         ConsIter { current: self }
@@ -158,22 +159,21 @@ impl LispValue {
             LispValue::Integer(x) => Some(*x),
             LispValue::BigInt(x) => x.to_i64(),
             LispValue::BigRational(x) => x.to_i64(),
-            _ => None
+            _ => None,
         }
     }
     pub fn to_lisp_func(&self) -> Option<&LispFunc> {
         match self {
             LispValue::LispFunction(f) => Some(f.as_ref()),
-            _ => None
+            _ => None,
         }
     }
     pub fn to_symbol_id(&self) -> Result<i32, String> {
         match self {
             LispValue::Symbol(s) => Ok(*s),
-            _ => Err("Not a symbol".into())
+            _ => Err("Not a symbol".into()),
         }
     }
-
 }
 
 impl PartialEq for LispValue {
@@ -243,8 +243,8 @@ impl PartialOrd for LispValue {
         match self {
             LispValue::Cons(a) => {
                 if let LispValue::Cons(a2) = other {
-                    let c1 = a.partial_cmp(&a2); 
-                    
+                    let c1 = a.partial_cmp(&a2);
+
                     return c1;
                 }
                 return None;
@@ -441,7 +441,6 @@ impl TryInto<i64> for LispValue {
     }
 }
 
-
 impl fmt::Display for LispValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
@@ -505,32 +504,32 @@ impl fmt::Display for LispValue {
 }
 
 #[derive(Debug)]
-pub enum ScopeType{
+pub enum ScopeType {
     FunctionScope(LispScope2),
-    LetScope(LetScope)
+    LetScope(LetScope),
 }
 
 #[derive(Debug)]
-pub struct LetScope{
+pub struct LetScope {
     sym: i32,
-    argoffset : usize,
+    argoffset: usize,
 }
 
 impl LetScope {
-    pub fn get_value<'a>(&self, ctx: &'a LispContext, symid: i32) -> Option<&'a LispValue>{
+    pub fn get_value<'a>(&self, ctx: &'a LispContext, symid: i32) -> Option<&'a LispValue> {
         if self.sym == symid {
             return Some(&ctx.arg_stack[self.argoffset]);
         }
         return None;
     }
-    pub fn set_value<'a>(&self, ctx: &mut LispContext, symid: i32, v: LispValue) -> Option<()>{
+    pub fn set_value<'a>(&self, ctx: &mut LispContext, symid: i32, v: LispValue) -> Option<()> {
         if self.sym == symid {
             ctx.arg_stack[self.argoffset] = v;
             return Some(());
         }
         return None;
     }
-    pub fn get_arg_offset(&self, symid : i32) -> Option<usize> {
+    pub fn get_arg_offset(&self, symid: i32) -> Option<usize> {
         if self.sym == symid {
             return Some(self.argoffset);
         }
@@ -542,24 +541,27 @@ impl LetScope {
 pub struct LispScope2 {
     func: Rc<LispFunc>,
     argoffset: usize,
-    reader: CodeReader
+    reader: CodeReader,
 }
 
 impl LispScope2 {
-    pub fn new(f :  Rc<LispFunc>, argoffset: usize, reader: CodeReader) -> LispScope2 {
-        LispScope2 { func: f, argoffset, reader: reader}
+    pub fn new(f: Rc<LispFunc>, argoffset: usize, reader: CodeReader) -> LispScope2 {
+        LispScope2 {
+            func: f,
+            argoffset,
+            reader: reader,
+        }
     }
     pub fn get_arg_offset(&self, symid: i32) -> Option<usize> {
         for i in 0..self.func.args_names.len() {
-            
             if self.func.args_names[i] == symid {
                 return Some(self.argoffset + i);
             }
         }
         return None;
     }
-    
-    pub fn get_value<'a>(&self, ctx: &'a LispContext, symid: i32) -> Option<&'a LispValue>{
+
+    pub fn get_value<'a>(&self, ctx: &'a LispContext, symid: i32) -> Option<&'a LispValue> {
         for i in 0..self.func.args_names.len() {
             if self.func.args_names[i] == symid {
                 return Some(&ctx.arg_stack[self.argoffset + i]);
@@ -567,7 +569,7 @@ impl LispScope2 {
         }
         return None;
     }
-    pub fn set_value<'a>(&self, ctx: &mut LispContext, symid: i32, v: LispValue) -> Option<()>{
+    pub fn set_value<'a>(&self, ctx: &mut LispContext, symid: i32, v: LispValue) -> Option<()> {
         for i in 0..self.func.args_names.len() {
             if self.func.args_names[i] == symid {
                 ctx.arg_stack[self.argoffset + i] = v;
@@ -587,10 +589,8 @@ pub struct LispContext {
 
     arg_stack: Vec<LispValue>,
     current_scope: Vec<ScopeType>,
-    current_error: Option<String>
-    
+    current_error: Option<String>,
 }
-
 
 impl LispContext {
     fn load(&mut self, code: &str) -> Option<LispValue> {
@@ -617,7 +617,6 @@ impl LispContext {
         for x in self.current_scope.iter_mut().rev() {
             if let ScopeType::FunctionScope(f) = x {
                 return Some(&mut f.reader);
-
             }
         }
         return None;
@@ -652,10 +651,12 @@ impl LispSymbolName for i32 {
 
 impl LispSymbolName for LispValue {
     fn symbol_name(&self, ctx: &LispContext) -> String {
-        ctx.symbol_name_lookup.get(self.to_symbol_id().unwrap() as usize).unwrap().clone()
+        ctx.symbol_name_lookup
+            .get(self.to_symbol_id().unwrap() as usize)
+            .unwrap()
+            .clone()
     }
 }
-
 
 #[derive(Debug)]
 pub struct LispScope<'a> {
@@ -694,7 +695,7 @@ impl<'a> Iterator for ConsIter<'a> {
 thread_local! {
     pub static CURRENT_NAMES: RefCell<Vec<String>> = RefCell::new(Vec::new());
 }
-pub fn update_symbol_names(ctx : &LispContext){
+pub fn update_symbol_names(ctx: &LispContext) {
     let src = &ctx.symbol_name_lookup;
     CURRENT_NAMES.with(|v| {
         let mut v = v.borrow_mut();
@@ -721,7 +722,7 @@ impl<'a> Stack<'a> {
             error: None,
         }
     }
-    
+
     fn eval<T>(&mut self, code: &T) -> LispValue
     where
         T: LispEvalable + ?Sized,
@@ -798,8 +799,8 @@ impl<'a> LispContext {
             globals: Vec::new(),
             global_names: Vec::with_capacity(10),
             arg_stack: Vec::new().into(),
-            current_scope : Vec::new(),
-            current_error: None
+            current_scope: Vec::new(),
+            current_error: None,
         };
     }
     pub fn find_symbol(&self, name: &str) -> LispValue {
@@ -856,12 +857,16 @@ impl<'a> LispContext {
     }
 
     fn get_value(&self, symid: i32) -> Option<&LispValue> {
-        let place = self.current_scope.iter().rev().flat_map(|x| match x {
-            ScopeType::FunctionScope(f) => f.get_arg_offset(symid),
-            ScopeType::LetScope(v) => v.get_arg_offset(symid),
+        let place = self
+            .current_scope
+            .iter()
+            .rev()
+            .flat_map(|x| match x {
+                ScopeType::FunctionScope(f) => f.get_arg_offset(symid),
+                ScopeType::LetScope(v) => v.get_arg_offset(symid),
+            })
+            .nth(0);
 
-        }).nth(0);
-        
         if let Some(i) = place {
             return Some(&self.arg_stack[i]);
         }
@@ -869,10 +874,15 @@ impl<'a> LispContext {
     }
 
     fn set_value(&mut self, symid: i32, v: LispValue) -> bool {
-        let place = self.current_scope.iter().rev().flat_map(|x| match x {
-            ScopeType::FunctionScope(f) => f.get_arg_offset(symid),
-            ScopeType::LetScope(v) => v.get_arg_offset(symid),
-        }).nth(0);
+        let place = self
+            .current_scope
+            .iter()
+            .rev()
+            .flat_map(|x| match x {
+                ScopeType::FunctionScope(f) => f.get_arg_offset(symid),
+                ScopeType::LetScope(v) => v.get_arg_offset(symid),
+            })
+            .nth(0);
 
         if let Some(i) = place {
             self.arg_stack[i] = v;
@@ -880,7 +890,6 @@ impl<'a> LispContext {
         }
         self.set_global(symid, v);
         return true;
-        
     }
 }
 
@@ -1037,7 +1046,6 @@ fn lisp_eval_lisp_function<'a>(ctx: &mut Stack, func: &LispFunc, args: &'a LispV
 
     result
 }
-
 
 fn lisp_eval<'a>(ctx: &'a mut Stack, v: &'a LispValue) -> LispValue {
     if let Some(e) = &ctx.error {
@@ -1257,8 +1265,6 @@ mod test {
         println!("{}", stk.eval("(pow2 10)"));
         assert!(stk.error.is_none());
     }
-
- 
 }
 //#[cfg(test)]
 //#[test]

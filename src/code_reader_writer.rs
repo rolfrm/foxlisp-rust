@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{LispContext, bytecode::ByteCode};
+use crate::{bytecode::ByteCode, LispContext};
 
 pub trait u128able {
     fn as_u128(&self) -> u128;
@@ -10,19 +10,19 @@ pub trait i128able {
     fn as_i128(&self) -> i128;
 }
 
-impl i128able for i128{
-    fn as_i128(&self) -> i128{
+impl i128able for i128 {
+    fn as_i128(&self) -> i128 {
         *self
     }
 }
 
-impl i128able for i64{
-    fn as_i128(&self) -> i128{
+impl i128able for i64 {
+    fn as_i128(&self) -> i128 {
         *self as i128
     }
 }
-impl i128able for i32{
-    fn as_i128(&self) -> i128{
+impl i128able for i32 {
+    fn as_i128(&self) -> i128 {
         *self as i128
     }
 }
@@ -48,7 +48,6 @@ impl u128able for u128 {
     }
 }
 
-
 pub struct CodeWriter {
     pub bytes: Vec<u8>,
 }
@@ -60,7 +59,6 @@ pub struct CodeReader {
 }
 
 impl CodeReader {
-    
     pub fn end(&self) -> bool {
         self.bytes.len() <= self.offset
     }
@@ -70,7 +68,7 @@ impl CodeReader {
             offset: 0,
         }
     }
-    pub fn jmp(&mut self, amount: i64){
+    pub fn jmp(&mut self, amount: i64) {
         if (self.offset as i64) + amount < 0 {
             panic!("Invalid jump {} > {}", self.offset, amount);
         }
@@ -81,35 +79,35 @@ impl CodeReader {
         self.offset += 1;
         return self.bytes[i];
     }
-    pub fn read_uleb(&mut self) -> u64{
+    pub fn read_uleb(&mut self) -> u64 {
         // read LEB128
-        let mut value : u64 = 0;
-        let mut offset : u32 = 0;
+        let mut value: u64 = 0;
+        let mut offset: u32 = 0;
         loop {
             let chunk = self.read_u8();
-          value |= ((chunk & 0b01111111) as u64) << offset;
-          offset += 7;
-          if (0b10000000 & chunk) == 0 {
-            break;
-          }
+            value |= ((chunk & 0b01111111) as u64) << offset;
+            offset += 7;
+            if (0b10000000 & chunk) == 0 {
+                break;
+            }
         }
         return value;
-      }
+    }
 
-      pub fn read_uleb_u128(&mut self) -> u128{
+    pub fn read_uleb_u128(&mut self) -> u128 {
         // read LEB128
-        let mut value : u128 = 0;
-        let mut offset : u32 = 0;
+        let mut value: u128 = 0;
+        let mut offset: u32 = 0;
         loop {
             let chunk = self.read_u8();
-          value |= ((chunk & 0b01111111) as u128) << offset;
-          offset += 7;
-          if (0b10000000 & chunk) == 0 {
-            break;
-          }
+            value |= ((chunk & 0b01111111) as u128) << offset;
+            offset += 7;
+            if (0b10000000 & chunk) == 0 {
+                break;
+            }
         }
         return value;
-      }
+    }
 
     pub fn read_sleb(&mut self) -> i64 {
         let mut value = 0;
@@ -149,12 +147,10 @@ impl CodeReader {
 
 impl CodeWriter {
     pub fn new() -> CodeWriter {
-        CodeWriter {
-            bytes: Vec::new(),
-        }
+        CodeWriter { bytes: Vec::new() }
     }
 
-    pub fn to_reader(self) -> CodeReader{
+    pub fn to_reader(self) -> CodeReader {
         CodeReader::new(self.bytes)
     }
 
