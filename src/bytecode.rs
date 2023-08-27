@@ -1,7 +1,6 @@
 
 pub enum ByteCode {
-    // marks invalid code.
-    InvalidCode = 0,
+    
     // Load NIL on the stack.
     LdNil = 1,
     // Loads a variable value on the stack.

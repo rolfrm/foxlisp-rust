@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::{self};
 use std::rc::Rc;
-use std::{env, i128, u128};
+use std::{env, u128};
 mod lisp;
 use lisp::*;
 mod math;
@@ -21,6 +21,7 @@ mod code_reader_writer;
 use code_reader_writer::*;
 
 mod compile;
+use compile::*;
 
 #[derive(Clone)]
 pub enum NativeFunc {
@@ -48,7 +49,7 @@ pub struct LispFunc {
 }
 
 impl LispFunc{
-    fn with_compled_code(&self, code : Vec<u8>) -> LispFunc {
+    pub fn with_compled_code(&self, code : Vec<u8>) -> LispFunc {
         LispFunc{code: self.code.clone(), 
             compiled_code: code, 
             args_names: self.args_names.clone(), 
@@ -56,10 +57,6 @@ impl LispFunc{
              variadic: self.variadic
              }
     }
-}
-
-struct TempIndex {
-    value: LispValue,
 }
 
 pub enum LispValue {
@@ -545,13 +542,12 @@ impl LetScope {
 pub struct LispScope2 {
     func: Rc<LispFunc>,
     argoffset: usize,
-    parent: Option<Box<ScopeType>>,
     reader: CodeReader
 }
 
 impl LispScope2 {
     pub fn new(f :  Rc<LispFunc>, argoffset: usize, reader: CodeReader) -> LispScope2 {
-        LispScope2 { func: f, argoffset, parent: None, reader: reader}
+        LispScope2 { func: f, argoffset, reader: reader}
     }
     pub fn get_arg_offset(&self, symid: i32) -> Option<usize> {
         for i in 0..self.func.args_names.len() {

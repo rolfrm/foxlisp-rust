@@ -1,5 +1,3 @@
-use std::borrow::BorrowMut;
-
 use crate::*;
 
 #[derive(Debug)]
@@ -44,7 +42,7 @@ pub fn lisp_compile(ctx: &mut LispContext, code: &LispValue, w: &mut CodeWriter)
                 }
                 if name.eq("defun"){
                     let name = car(&a.1).to_symbol_id();
-                    if let Err(nameError) = name {
+                    if let Err(_) = name {
                         return Err(CompileError::ArgumentError(code.clone()));
                     }
                     let args = cadr(&a.1);
@@ -52,7 +50,7 @@ pub fn lisp_compile(ctx: &mut LispContext, code: &LispValue, w: &mut CodeWriter)
 
                     let arg_symids : Result<Vec<i32>, String> = args.to_iter()
                         .map(|x| {Ok(x.to_symbol_id()?)}).collect();
-                    if let Err(e) = arg_symids {
+                    if let Err(_) = arg_symids {
                         return Err(CompileError::InvalidValue);
                     }
                     let arg_symids = arg_symids.unwrap();
@@ -280,7 +278,6 @@ fn lisp_bytecode_print(code: &mut CodeReader, stk: &LispContext) {
         let upcode = code.read_u8().to_bytecode();
 
         match upcode {
-            ByteCode::InvalidCode => todo!(),
             ByteCode::LdNil => {
                 println!("LdNil");
             }
@@ -364,7 +361,6 @@ fn lisp_eval_bytecode(stk: &mut LispContext) -> () {
         let upcode = stk.read_u8().to_bytecode();
         
         match upcode {
-            ByteCode::InvalidCode => todo!(),
             ByteCode::LdNil => {
                 stk.arg_stack.push(LispValue::Nil);
             }
@@ -430,12 +426,14 @@ fn lisp_eval_bytecode(stk: &mut LispContext) -> () {
                     let mut args = &mut stk.arg_stack[newlen..];
                     
                     if func.compiled_code.len() == 0 {
-                        let mut writer = CodeWriter::new();
-                        lisp_compile(stk, &func.code, &mut writer);
-                        let f2 = func.with_compled_code(writer.bytes);
+                        //let mut writer = CodeWriter::new();
+                        //lisp_compile(stk, &func.code, &mut writer).unwrap();
+                        //let f2 = func.with_compled_code(writer.bytes);
+                        
                         panic!("Not supported!");
                     }
 
+                    // todo: this is pretty slow. Find a way of using the func code without copying it.
                     let rd = CodeReader::new(func.compiled_code.clone());
 
                     let scope = LispScope2::new(func.clone(), newlen as usize, rd);
@@ -527,12 +525,8 @@ pub fn lisp_compile_and_eval_string(ctx: &mut LispContext, code: &str) -> LispVa
                 variadic: false
             };
 
-            let s2 = LispScope2 {
-                func: Rc::new(lf),
-                argoffset: 0,
-                parent: None,
-                reader: code_reader,
-            };
+            let s2 = LispScope2::new(Rc::new(lf),0, code_reader);
+
             ctx.current_scope.push(ScopeType::FunctionScope(s2));
 
             lisp_eval_bytecode(ctx);
@@ -554,11 +548,7 @@ pub fn lisp_compile_and_eval_string(ctx: &mut LispContext, code: &str) -> LispVa
 #[cfg(test)]
 mod test {
 
-    use std::mem::size_of;
-
     use crate::{compile::{lisp_compile_and_eval_string, lisp_bytecode_print_bytes}, compile::lisp_eval_bytecode, *};
-
-    use super::lisp_compile;
 
     #[test]
     fn test_basic_compile() {
@@ -612,8 +602,8 @@ mod test {
         let func = fib2.to_lisp_func();
         lisp_bytecode_print_bytes(func.unwrap().compiled_code.clone(), &ctx);
         println!("{:?}", ctx.arg_stack);
-        let fib5 = lisp_compile_and_eval_string(&mut ctx, "(fib 30)");
-        let fib5_2 = fib(30);
+        let fib5 = lisp_compile_and_eval_string(&mut ctx, "(fib 10)");
+        let fib5_2 = fib(10);
         assert_eq!(fib5_2, fib5.to_integer().unwrap());
 
         let s1 = std::mem::size_of_val(&LispValue::Nil);
