@@ -164,6 +164,12 @@ impl LispValue {
             _ => None
         }
     }
+    pub fn to_lisp_func(&self) -> Option<&LispFunc> {
+        match self {
+            LispValue::LispFunction(f) => Some(f.as_ref()),
+            _ => None
+        }
+    }
     pub fn to_symbol_id(&self) -> Result<i32, String> {
         match self {
             LispValue::Symbol(s) => Ok(*s),
@@ -438,6 +444,7 @@ impl TryInto<i64> for LispValue {
     }
 }
 
+
 impl fmt::Display for LispValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
@@ -691,7 +698,18 @@ impl<'a> Iterator for ConsIter<'a> {
 thread_local! {
     pub static CURRENT_NAMES: RefCell<Vec<String>> = RefCell::new(Vec::new());
 }
-
+pub fn update_symbol_names(ctx : &LispContext){
+    let src = &ctx.symbol_name_lookup;
+    CURRENT_NAMES.with(|v| {
+        let mut v = v.borrow_mut();
+        if v.len() != src.len() {
+            v.clear();
+            for s in src.iter() {
+                v.push(s.clone());
+            }
+        }
+    });
+}
 impl<'a> Stack<'a> {
     fn new_root(ctx: &'a mut LispContext) -> Self {
         Stack {
@@ -707,7 +725,7 @@ impl<'a> Stack<'a> {
             error: None,
         }
     }
-
+    
     fn eval<T>(&mut self, code: &T) -> LispValue
     where
         T: LispEvalable + ?Sized,
@@ -829,6 +847,11 @@ impl<'a> LispContext {
             return x;
         }
         return None;
+    }
+
+    pub fn get_global_str(&mut self, name: &str) -> Option<&LispValue> {
+        let id = self.get_symbol_id(name);
+        self.get_global(id)
     }
 
     pub fn set_global_str(&mut self, name: &str, value: LispValue) {

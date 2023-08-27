@@ -271,7 +271,7 @@ pub fn lisp_eval_value(ctx: &mut Stack, body: &LispValue) -> LispValue {
 fn lisp_gt<'a>(a: &'a LispValue,b: &'a LispValue) -> &'a LispValue{
     if let Some(x) = a.partial_cmp(b) {
         if x.is_gt() {
-            return &LispValue::Integer(1);
+            return &LispValue::T;
         }
     }
     return &LispValue::Nil;
@@ -280,7 +280,7 @@ fn lisp_gt<'a>(a: &'a LispValue,b: &'a LispValue) -> &'a LispValue{
 fn lisp_lt<'a>(a: &'a LispValue,b: &'a LispValue) -> &'a LispValue{
     if let Some(x) = a.partial_cmp(b) {
         if x.is_lt() {
-            return &LispValue::Integer(1);
+            return &LispValue::T;
         }
     }
     return &LispValue::Nil;

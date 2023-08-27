@@ -1,21 +1,39 @@
 
 pub enum ByteCode {
-    NoCode = 0,
+    // marks invalid code.
+    InvalidCode = 0,
+    // Load NIL on the stack.
     LdNil = 1,
+    // Loads a variable value on the stack.
     LdSym = 2,
+    // Sets a variable value, popping the value from the stack
     SetSym = 3,
+    // Calls a function on the stack
     Call = 4,
+    // Loads a constant i64 value
     LdConstI = 5,
+    // Define a new global variable.
     DefVar = 6,
+    // Pops the top value from the stack and pushes whether it was nil or not.
     IsNil = 7,
+    // Conditionally jumps a relative length. Depends on the current value on the top of the stack.
     CondJmp = 8,
+    // Jumps a relative distance.
     Jmp = 9,
+    // Loads 't on the stack.
     LdT = 10,
+    // drops a value from the stack.
     Drop = 11,
+    // returns from the scope (not implemented)
     Return = 12,
+    // defines a function.
     Defun = 13,
+    // Declares a local variable.
     Let = 14,
-    DropScope = 15
+    // drops a number of variables.
+    DropScope = 15,
+    // duplicates the top value on the stack.
+    Dup = 16
 }
 
 pub trait ToByteCode {
@@ -40,6 +58,7 @@ impl ToByteCode for u8 {
             13 => ByteCode::Defun,
             14 => ByteCode::Let,
             15 => ByteCode::DropScope,
+            16 => ByteCode::Dup,
             _ => panic!("Invalid upcode {}", self),
         }
     }
