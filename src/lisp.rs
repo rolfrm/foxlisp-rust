@@ -82,7 +82,7 @@ fn lisp_conss(v: Vec<LispValue>) -> LispValue {
     return v0;
 }
 
-fn lisp_cons(a: LispValue, b: LispValue) -> LispValue {
+pub fn lisp_cons(a: LispValue, b: LispValue) -> LispValue {
     LispValue::cons(a, b)
 }
 

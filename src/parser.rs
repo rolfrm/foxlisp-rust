@@ -143,6 +143,8 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
         return None;
     }
 
+
+
     if code2[0] == b'(' {
         code2 = &code2[1..];
 
@@ -205,6 +207,20 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
         if code2.len() > 0 && code2[0] == b':' {
             keyword = true
         }
+        let mut quote = false;
+        if code2[0] == b'\'' {
+            quote = true;
+            code2 = &code2[1..];
+            let mut lv = LispValue::Nil;
+            if let Some(c) = parse(ctx, code2, &mut lv) {
+                
+                let newcons = lisp_cons(ctx.get_symbol("quote"), lisp_cons(lv.clone(), LispValue::Nil));
+                *value = newcons;
+                return Some(c);
+            }
+            return None;
+        }
+
         if let Some(next) = parse_token(code2, "t") {
             *value = LispValue::T;
             return Some(next);
@@ -220,6 +236,7 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
             return Some(next);
         }
         if let Some(sym) = parse_symbol(ctx, code2, value) {
+            
             if keyword {
                 if let LispValue::Symbol(x) = value {
                     ctx.set_value(*x, value.clone());
@@ -275,5 +292,17 @@ mod test {
         let val2 = reader.read_sleb_i128();
         assert_eq!(bignumber, val1);
         println!("{} {}   {} {}", sym1, val1, sym2, val2);
+    }
+    #[test]
+    fn test_parse_symbol() {
+        let mut ctx = lisp_load_basic();
+        let value = parse_from_string(&mut ctx, "'aaa");
+        update_symbol_names(&ctx);
+        println!("{:?}", ctx.symbol_name_lookup);
+        println!("{}", value);
+        let symname = ctx.get_symbol_name(cadr(&value)).unwrap();
+        assert_eq!("aaa", symname);
+        let qname = ctx.get_symbol_name(car(&value)).unwrap();
+        assert_eq!("quote", qname);
     }
 }

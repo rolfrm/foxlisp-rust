@@ -31,6 +31,7 @@ pub enum ByteCode {
     DropScope = 15,
     // duplicates the top value on the stack.
     Dup = 16,
+    LdQuote = 17
 }
 
 pub trait ToByteCode {
@@ -56,6 +57,7 @@ impl ToByteCode for u8 {
             14 => ByteCode::Let,
             15 => ByteCode::DropScope,
             16 => ByteCode::Dup,
+            17 => ByteCode::LdQuote,
             _ => panic!("Invalid upcode {}", self),
         }
     }

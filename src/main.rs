@@ -171,7 +171,7 @@ impl LispValue {
     pub fn to_symbol_id(&self) -> Result<i32, String> {
         match self {
             LispValue::Symbol(s) => Ok(*s),
-            _ => Err("Not a symbol".into()),
+            _ => Err("!!".into()),
         }
     }
 }
@@ -590,9 +590,22 @@ pub struct LispContext {
     arg_stack: Vec<LispValue>,
     current_scope: Vec<ScopeType>,
     current_error: Option<String>,
+    
+    quote_store: Vec<LispValue>
 }
 
 impl LispContext {
+
+    pub fn get_quote_store(&mut self, v: &LispValue) -> i32{
+        let id = self.quote_store.len() as i32;
+        self.quote_store.push(v.clone());
+        return id;
+    }
+
+    pub fn lookup_quote(&self, id: i32) -> &LispValue{
+        self.quote_store.get(id as usize).unwrap()
+    }
+
     fn load(&mut self, code: &str) -> Option<LispValue> {
         let mut stk = Stack::new_root(self);
         lisp_load_str(&mut stk, code);
@@ -637,24 +650,28 @@ impl LispContext {
     fn jmp(&mut self, offset: i64) {
         self.get_reader_mut().unwrap().jmp(offset)
     }
+
+    fn get_symbol_name(&self, value: &LispValue) -> Option<String> {
+        value.symbol_name(self)
+    }
 }
 
 pub trait LispSymbolName {
-    fn symbol_name(&self, ctx: &LispContext) -> String;
+    fn symbol_name(&self, ctx: &LispContext) -> Option<String>;
 }
 
 impl LispSymbolName for i32 {
-    fn symbol_name(&self, ctx: &LispContext) -> String {
-        ctx.symbol_name_lookup.get(*self as usize).unwrap().clone()
+    fn symbol_name(&self, ctx: &LispContext) -> Option<String> {
+        ctx.symbol_name_lookup.get(*self as usize).and_then(|x| Some(x.clone()))
     }
 }
 
 impl LispSymbolName for LispValue {
-    fn symbol_name(&self, ctx: &LispContext) -> String {
-        ctx.symbol_name_lookup
-            .get(self.to_symbol_id().unwrap() as usize)
-            .unwrap()
-            .clone()
+    fn symbol_name(&self, ctx: &LispContext) -> Option<String> {
+        if let Ok(x) = self.to_symbol_id() {
+            return x.symbol_name(ctx).clone();
+        }
+        return None;
     }
 }
 
@@ -798,9 +815,10 @@ impl<'a> LispContext {
             symbol_name_lookup: Vec::new(),
             globals: Vec::new(),
             global_names: Vec::with_capacity(10),
-            arg_stack: Vec::new().into(),
+            arg_stack: Vec::new(),
             current_scope: Vec::new(),
             current_error: None,
+            quote_store: Vec::new()
         };
     }
     pub fn find_symbol(&self, name: &str) -> LispValue {

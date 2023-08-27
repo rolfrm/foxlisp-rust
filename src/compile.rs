@@ -19,8 +19,17 @@ pub fn lisp_compile(
                 if namecode.is_none() {
                     return Err(CompileError::UnknownSymbol(a.0.clone()));
                 }
-                let name = &ctx.symbol_name_lookup[*namecode.unwrap()];
+                let name = &ctx.symbol_name_lookup[*namecode.unwrap()].clone();
                 //println!("Name code: {}", name);
+
+                if name.eq("quote") {
+                    let v = &a.1.clone();
+                    let id = ctx.get_quote_store(car(v));
+                    w.emit(ByteCode::LdQuote);
+                    w.emit_uleb(id);
+                    return Ok(());
+                }
+
                 if name.eq("set!") {
                     if let LispValue::Symbol(name) = car(&a.1) {
                         let value = cadr(&a.1);
@@ -53,7 +62,9 @@ pub fn lisp_compile(
                     let body = cddr(&a.1);
 
                     let arg_symids: Result<Vec<i32>, String> =
-                        args.to_iter().map(|x| Ok(x.to_symbol_id()?)).collect();
+                        args.to_iter()
+                        .map(|x| Ok(x.to_symbol_id()?))
+                        .collect();
                     if let Err(_) = arg_symids {
                         return Err(CompileError::InvalidValue);
                     }
@@ -183,6 +194,8 @@ pub fn lisp_compile(
                     return Ok(());
                 }
 
+                
+
                 if name.eq("let") {
                     let without_let = &a.1;
                     let args = car(&without_let);
@@ -290,26 +303,26 @@ fn lisp_bytecode_print(code: &mut CodeReader, stk: &LispContext) {
                 print!("Let (cnt: {}", cnt);
                 for _ in 0..cnt {
                     let s = code.read_uleb() as i32;
-                    print!(" {}", s.symbol_name(stk));
+                    print!(" {}", s.symbol_name(stk).unwrap());
                 }
                 println!(")");
             }
             ByteCode::LdSym => {
                 let symi = code.read_uleb() as i32;
-                println!("LdSym ({})", symi.symbol_name(stk));
+                println!("LdSym ({})", symi.symbol_name(stk).unwrap());
             }
             ByteCode::SetSym => {
                 let symi = code.read_uleb() as i32;
-                println!("SetSym ({})", symi.symbol_name(stk));
+                println!("SetSym ({})", symi.symbol_name(stk).unwrap());
             }
             ByteCode::DefVar => {
                 let symi = code.read_uleb() as i32;
-                println!("DefVar ({})", symi.symbol_name(stk));
+                println!("DefVar ({})", symi.symbol_name(stk).unwrap());
             }
             ByteCode::Call => {
                 let argcnt = code.read_uleb() as usize;
                 let symi = code.read_uleb() as i32;
-                println!("Call ({}, argcnt: {})", symi.symbol_name(stk), argcnt);
+                println!("Call ({}, argcnt: {})", symi.symbol_name(stk).unwrap(), argcnt);
             }
             ByteCode::LdConstI => {
                 let integer = code.read_sleb();
@@ -343,6 +356,10 @@ fn lisp_bytecode_print(code: &mut CodeReader, stk: &LispContext) {
             ByteCode::Dup => {
                 println!("Dup");
             }
+            ByteCode::LdQuote => {
+                let id = code.read_uleb();
+                println!("LdQuote ({})", id);
+            },
         }
     }
 }
@@ -490,6 +507,10 @@ fn lisp_eval_bytecode(stk: &mut LispContext) -> () {
             ByteCode::Dup => {
                 stk.arg_stack.push(stk.arg_stack.last().unwrap().clone());
             }
+            ByteCode::LdQuote => {
+                let id = stk.read_uleb() as i32;
+                stk.arg_stack.push(stk.lookup_quote(id).clone());
+            }
         }
     }
 }
@@ -618,6 +639,12 @@ mod test {
             "(defun fib (x) (if (< x 2) 1 (+ (fib (- x 1)) (fib (- x 2))))",
         );
 
+        fn fib(x: i64) -> i64 {
+            if x < 2 {
+                return 1;
+            }
+            return fib(x - 1) + fib(x - 2);
+        }
         let fib2 = ctx.get_global_str("fib").unwrap();
         let func = fib2.to_lisp_func();
         lisp_bytecode_print_bytes(func.unwrap().compiled_code.clone(), &ctx);
@@ -626,14 +653,14 @@ mod test {
         let fib5_2 = fib(10);
         assert_eq!(fib5_2, fib5.to_integer().unwrap());
 
+        lisp_compile_and_eval_string(
+            &mut ctx,
+            "(println '(1 2 asd))",
+        );
+
         let s1 = std::mem::size_of_val(&LispValue::Nil);
         println!("Size: {}", s1);
     }
 
-    fn fib(x: i64) -> i64 {
-        if x < 2 {
-            return 1;
-        }
-        return fib(x - 1) + fib(x - 2);
-    }
+
 }
