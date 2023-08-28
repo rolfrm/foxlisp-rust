@@ -20,11 +20,19 @@ pub fn lisp_compile(
                     return Err(CompileError::UnknownSymbol(a.0.clone()));
                 }
                 let name = &ctx.symbol_name_lookup[*namecode.unwrap()].clone();
-                //println!("Name code: {}", name);
-
+                println!("Name code: {}", name);
+                if name.eq("eval"){
+                    
+                    for arg in a.1.to_iter().take(1) {
+                        lisp_compile(ctx, arg, w)?;
+                    }
+                    w.emit(ByteCode::Eval);
+                    return Ok(());
+                }
                 if name.eq("quote") {
                     let v = &a.1.clone();
                     let id = ctx.get_quote_store(car(v));
+                    
                     w.emit(ByteCode::LdQuote);
                     w.emit_uleb(id);
                     return Ok(());
@@ -360,6 +368,7 @@ fn lisp_bytecode_print(code: &mut CodeReader, stk: &LispContext) {
                 let id = code.read_uleb();
                 println!("LdQuote ({})", id);
             },
+            ByteCode::Eval => println!("Eval"),
         }
     }
 }
@@ -422,7 +431,12 @@ fn lisp_eval_bytecode(stk: &mut LispContext) -> () {
                             let a2 = stk.arg_stack.pop().unwrap();
                             f2(a1, a2)
                         }
-                        NativeFunc::Function1r(_) => todo!(),
+                        NativeFunc::Function1r(f1) => {
+                            let l = stk.arg_stack.len();
+                            let r = f1(&stk.arg_stack[l - 1]).clone();
+                            stk.arg_stack.truncate(l - 1);
+                            r
+                        },
                         NativeFunc::Function2r(f2) => {
                             let l = stk.arg_stack.len();
                             let r = f2(&stk.arg_stack[l - 2], &stk.arg_stack[l - 1]).clone();
@@ -511,6 +525,21 @@ fn lisp_eval_bytecode(stk: &mut LispContext) -> () {
                 let id = stk.read_uleb() as i32;
                 stk.arg_stack.push(stk.lookup_quote(id).clone());
             }
+            ByteCode::Eval => {
+                // assume something evalable is on the stack.
+                let code = stk.arg_stack.pop().unwrap();
+                let mut wd = CodeWriter::new();
+                lisp_compile(stk, &code, &mut wd).unwrap();
+                let mut eval_scope =LispScope2 {
+                    func: Rc::new(LispFunc { code: code.clone(), 
+                        compiled_code: wd.bytes.clone(), 
+                        args_names: Vec::new(), magic: false, variadic: false }),
+                    argoffset: stk.arg_stack.len(),
+                    reader: CodeReader::new(wd.bytes),
+                };
+                stk.current_scope.push(ScopeType::FunctionScope(eval_scope));
+                continue;
+            },
         }
     }
 }
@@ -653,10 +682,22 @@ mod test {
         let fib5_2 = fib(10);
         assert_eq!(fib5_2, fib5.to_integer().unwrap());
 
-        lisp_compile_and_eval_string(
+        let cdr_quote = lisp_compile_and_eval_string(
             &mut ctx,
-            "(println '(1 2 asd))",
+            "(cdr '(1 2 asd))",
         );
+
+        let code = "(2 asd)".to_evalable(&mut ctx).unwrap();
+
+        assert_eq!(true, cdr_quote.equals(&code));
+
+        let evaled_3 = lisp_compile_and_eval_string(
+            &mut ctx,
+            "(eval '(+ 1 2))",
+        );
+
+        assert_eq!(3, evaled_3.to_integer().unwrap());
+
 
         let s1 = std::mem::size_of_val(&LispValue::Nil);
         println!("Size: {}", s1);
