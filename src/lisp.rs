@@ -255,16 +255,16 @@ fn lisp_raise(ctx: &mut Stack, body: &LispValue) -> LispValue {
 fn lisp_load(ctx: &mut Stack, body: &LispValue) -> LispValue {
     let path = car(body);
     if let LispValue::String(path) = path {
-        lisp_eval_file(ctx, path);
+        lisp_eval_file(ctx.global_scope, path);
     } else {
         lisp_raise_error(ctx, LispValue::from("not a file"));
     }
     return LispValue::Nil;
 }
 
-pub fn lisp_eval_value(ctx: &mut Stack, body: &LispValue) -> LispValue {
-    lisp_eval(ctx, car(body))
-}
+//pub fn lisp_eval_value(ctx: &mut Stack, body: &LispValue) -> LispValue {
+//    lisp_eval(ctx, car(body))
+//}
 
 fn lisp_gt<'a>(a: &'a LispValue, b: &'a LispValue) -> &'a LispValue {
     if let Some(x) = a.partial_cmp(b) {
@@ -338,9 +338,9 @@ pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str("raise", LispValue::from_macro(lisp_raise));
     ctx.set_global_str("load", LispValue::from_macro(lisp_load));
     ctx.set_global_str("progn", LispValue::from_macro(lisp_progn));
-    ctx.set_global_str("eval", LispValue::from_macro(lisp_eval_value));
-    ctx.set_global_str("handle-error", LispValue::from_macro(lisp_handle_error));
-    let mut stack = Stack::new_root(ctx);
+    //ctx.set_global_str("eval", LispValue::from_macro(lisp_eval_value));
+    //ctx.set_global_str("handle-error", LispValue::from_macro(lisp_handle_error));
+    //let mut stack = Stack::new_root(ctx);
 
-    stack.eval("(defun assert (cond) (if cond 1 (raise (quote (assert failed)))))");
+    //stack.eval("(defun assert (cond) (if cond 1 (raise (quote (assert failed)))))");
 }

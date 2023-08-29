@@ -143,6 +143,15 @@ impl CodeReader {
         }
         return value as i128;
     }
+
+    pub fn read_f64(&mut self) -> f64 {
+        let mut bytes : [u8;8] = [0;8];
+        for i in 0..8 {
+            bytes[i] = self.read_u8();
+        }
+        f64::from_be_bytes(bytes)
+    }
+
 }
 
 impl CodeWriter {
@@ -164,6 +173,11 @@ impl CodeWriter {
 
     pub fn emit_u8(&mut self, v: u8) {
         self.bytes.push(v)
+    }
+    pub fn emit_f64(&mut self, v: &f64) {
+        for b in v.to_be_bytes() {
+            self.emit_u8(b);
+        }
     }
 
     pub fn emit_sleb<T>(&mut self, in_value: T)

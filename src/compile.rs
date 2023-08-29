@@ -20,7 +20,7 @@ pub fn lisp_compile(
                     return Err(CompileError::UnknownSymbol(a.0.clone()));
                 }
                 let name = &ctx.symbol_name_lookup[*namecode.unwrap()].clone();
-                println!("Name code: {}", name);
+                //println!("Name code: {}", name);
                 if name.eq("eval"){
                     
                     for arg in a.1.to_iter().take(1) {
@@ -283,8 +283,26 @@ pub fn lisp_compile(
         LispValue::T => {
             w.emit(ByteCode::LdT);
             Ok(())
-        }
+        },
+        LispValue::String(str) => {
+            let c = ctx.get_quote_store(code);
+            w.emit(ByteCode::LdQuote);
+            w.emit_uleb(c);
+            Ok(())
+        },
+        LispValue::BigRational(br) => {
+            let c = ctx.get_quote_store(code);
+            w.emit(ByteCode::LdQuote);
+            w.emit_uleb(c);
+            Ok(())
+        },
+        LispValue::Rational(r) => {
+            w.emit(ByteCode::LdConstR);
+            w.emit_f64(r);
+            Ok(())
+        },
         _ => {
+            panic!("Not implemented for {:?}", code);
             todo!();
         }
     }
@@ -294,7 +312,7 @@ pub fn lisp_bytecode_print_bytes(code: Vec<u8>, stk: &LispContext) {
     lisp_bytecode_print(&mut code, stk)
 }
 
-fn lisp_bytecode_print(code: &mut CodeReader, stk: &LispContext) {
+pub fn lisp_bytecode_print(code: &mut CodeReader, stk: &LispContext) {
     loop {
         if code.end() {
             return;
@@ -369,11 +387,15 @@ fn lisp_bytecode_print(code: &mut CodeReader, stk: &LispContext) {
                 println!("LdQuote ({})", id);
             },
             ByteCode::Eval => println!("Eval"),
+            ByteCode::LdConstR => {
+                let r = code.read_f64();
+                println!("LdConstR {}", r);
+            },
         }
     }
 }
 
-fn lisp_eval_bytecode(stk: &mut LispContext) -> () {
+pub fn lisp_eval_bytecode(stk: &mut LispContext) -> () {
     loop {
         if stk.reader_end() {
             // return from call.
@@ -540,6 +562,10 @@ fn lisp_eval_bytecode(stk: &mut LispContext) -> () {
                 stk.current_scope.push(ScopeType::FunctionScope(eval_scope));
                 continue;
             },
+            ByteCode::LdConstR => {
+                let r = stk.get_reader_mut().unwrap().read_f64();
+                stk.arg_stack.push(LispValue::Rational(r));
+            }
         }
     }
 }

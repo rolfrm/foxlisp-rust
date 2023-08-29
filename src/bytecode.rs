@@ -32,7 +32,8 @@ pub enum ByteCode {
     // duplicates the top value on the stack.
     Dup = 16,
     LdQuote = 17,
-    Eval = 18
+    Eval = 18,
+    LdConstR = 19
 }
 
 pub trait ToByteCode {
@@ -60,6 +61,7 @@ impl ToByteCode for u8 {
             16 => ByteCode::Dup,
             17 => ByteCode::LdQuote,
             18 => ByteCode::Eval,
+            19 => ByteCode::LdConstR,
             _ => panic!("Invalid upcode {}", self),
         }
     }

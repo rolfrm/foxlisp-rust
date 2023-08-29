@@ -607,9 +607,8 @@ impl LispContext {
     }
 
     fn load(&mut self, code: &str) -> Option<LispValue> {
-        let mut stk = Stack::new_root(self);
-        lisp_load_str(&mut stk, code);
-        return stk.error;
+        lisp_load_str(self, code);
+        return None;
     }
 
     fn eval(&mut self, code: &dyn LispEvalable) -> Option<LispValue> {
@@ -1123,40 +1122,59 @@ fn lisp_eval_str(ctx: &mut Stack, code: &str) -> LispValue {
     return lisp_eval(ctx, &code2);
 }
 
-fn lisp_load_str(ctx: &mut Stack, code: &str) -> Option<LispValue> {
+fn lisp_load_str(ctx: &mut LispContext, code: &str) -> Option<LispValue> {
     let mut bytes = code.as_bytes();
-    while let Some(c) = parse_bytes(ctx.global_scope, &mut bytes) {
-        ctx.eval(&c);
-        if ctx.error.is_some() {
-            return ctx.error.clone();
-        }
+    while let Some(c) = parse_bytes(ctx, &mut bytes) {
+        update_symbol_names(&ctx);
+        let mut wd = CodeWriter::new();
+
+        lisp_compile(ctx, &c, &mut wd).unwrap();
+            
+            //lisp_bytecode_print(&mut CodeReader::new(wd.bytes.clone()), ctx);
+
+            let code_reader = CodeReader::new(wd.bytes.clone());
+
+            let lf = LispFunc {
+                code: c.clone(),
+                compiled_code: wd.bytes.clone(),
+                args_names: Vec::new(),
+                magic: false,
+                variadic: false,
+            };
+
+            let s2 = LispScope2::new(Rc::new(lf), 0, code_reader);
+
+            ctx.current_scope.push(ScopeType::FunctionScope(s2));
+
+            lisp_eval_bytecode(ctx);
+            ctx.current_scope.pop();
+            let result = ctx.arg_stack.pop().unwrap();
+        
     }
     None
 }
 
-fn lisp_eval_file(ctx: &mut Stack, code: &str) {
+fn lisp_eval_file(ctx: &mut LispContext, code: &str) {
     let str = fs::read_to_string(code);
     match str {
         Ok(r) => {
             lisp_load_str(ctx, r.as_str());
         }
         Err(_) => {
-            lisp_raise_error(ctx, LispValue::String("eerr".to_string()));
+            //lisp_raise_error(ctx, LispValue::String("eerr".to_string()));
         }
     }
 }
 
 fn main() {
     let mut ctx = lisp_load_basic();
-    let mut stk = Stack::new_root(&mut ctx);
-
     let args: Vec<String> = env::args().collect();
     for arg in args.iter().skip(1) {
-        lisp_eval_file(&mut stk, arg.as_str());
-        if let Some(err) = stk.error.clone() {
-            println!("ERROR: {}", err);
-            break;
-        }
+        lisp_eval_file(&mut ctx, arg.as_str());
+        //if let Some(err) = stk.error.clone() {
+        //    println!("ERROR: {}", err);
+        //    break;
+        //}
     }
 }
 
