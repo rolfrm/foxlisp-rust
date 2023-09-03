@@ -259,11 +259,11 @@ fn lisp_decf(scope: &mut Stack, v: &LispValue) -> LispValue {
 }
 
 pub fn lisp_math_load(ctx: &mut LispContext) {
-    ctx.set_global_str("+", LispValue::from_nr(lisp_add));
-    ctx.set_global_str("-", LispValue::from_nr(lisp_sub));
-    ctx.set_global_str("*", LispValue::from_nr(lisp_mul));
-    ctx.set_global_str("/", LispValue::from_nr(lisp_div));
-    ctx.set_global_str("pow", LispValue::from_nr(lisp_pow));
+    ctx.set_global_str("+", LispValue::from_n(lisp_add));
+    ctx.set_global_str("-", LispValue::from_n(lisp_sub));
+    ctx.set_global_str("*", LispValue::from_n(lisp_mul));
+    ctx.set_global_str("/", LispValue::from_n(lisp_div));
+    ctx.set_global_str("pow", LispValue::from_n(lisp_pow));
     ctx.set_global_str("sqrt", LispValue::from_1(lisp_sqrt));
 
     ctx.set_global_str("big-rational", LispValue::from_1(lisp_bigrational));

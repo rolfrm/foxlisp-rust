@@ -79,6 +79,13 @@ impl CodeReader {
         self.offset += 1;
         return self.bytes[i];
     }
+
+    pub fn read_i8(&mut self) -> i8 {
+        let i = self.offset;
+        self.offset += 1;
+        return self.bytes[i] as i8;
+    }
+
     pub fn read_uleb(&mut self) -> u64 {
         // read LEB128
         let mut value: u64 = 0;
@@ -145,13 +152,12 @@ impl CodeReader {
     }
 
     pub fn read_f64(&mut self) -> f64 {
-        let mut bytes : [u8;8] = [0;8];
+        let mut bytes: [u8; 8] = [0; 8];
         for i in 0..8 {
             bytes[i] = self.read_u8();
         }
         f64::from_be_bytes(bytes)
     }
-
 }
 
 impl CodeWriter {
@@ -174,6 +180,11 @@ impl CodeWriter {
     pub fn emit_u8(&mut self, v: u8) {
         self.bytes.push(v)
     }
+
+    pub fn emit_i8(&mut self, v: i8) {
+        self.bytes.push(v as u8);
+    }
+
     pub fn emit_f64(&mut self, v: &f64) {
         for b in v.to_be_bytes() {
             self.emit_u8(b);
@@ -214,5 +225,124 @@ impl CodeWriter {
                 break;
             }
         }
+    }
+}
+
+pub trait CodeReader2 {
+    fn read_u8(&mut self) -> u8;
+    fn end(&self) -> bool;
+}
+
+impl CodeReader2 for &[u8] {
+    fn read_u8(&mut self) -> u8 {
+        let r = self[0];
+        *self = &self[1..];
+        return r;
+    }
+    fn end(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+pub fn read_sleb64<T>(s: &mut T) -> i64
+where
+    T: CodeReader2,
+{
+    let mut value = 0;
+    let mut shift: u32 = 0;
+    let mut chunk: u8;
+    loop {
+        chunk = s.read_u8();
+        value |= (chunk as u64 & 0x7f) << shift;
+        shift += 7;
+        if chunk < 128 {
+            break;
+        }
+    }
+    if shift < 64 && (chunk & 0x40) > 0 {
+        value |= (u64::MAX) << shift;
+    }
+    return value as i64;
+}
+
+pub fn read_sleb32<T>(s: &mut T) -> i32
+where
+    T: CodeReader2,
+{
+    let mut value = 0;
+    let mut shift: u32 = 0;
+    let mut chunk: u8;
+    loop {
+        chunk = s.read_u8();
+        value |= (chunk as u32 & 0x7f) << shift;
+        shift += 7;
+        if chunk < 128 {
+            break;
+        }
+    }
+    if shift < 64 && (chunk & 0x40) > 0 {
+        value |= (u32::MAX) << shift;
+    }
+    return value as i32;
+}
+
+pub fn read_uleb_u128<T>(s: &mut T) -> u128 where T:CodeReader2{
+    // read LEB128
+    let mut value: u128 = 0;
+    let mut offset: u32 = 0;
+    loop {
+        let chunk = s.read_u8();
+        value |= ((chunk & 0b01111111) as u128) << offset;
+        offset += 7;
+        if (0b10000000 & chunk) == 0 {
+            break;
+        }
+    }
+    return value;
+}
+
+pub fn read_uleb_u32<T>(s: &mut T) -> u32 where T:CodeReader2{
+    // read LEB128
+    let mut value: u32 = 0;
+    let mut offset: u32 = 0;
+    loop {
+        let chunk = s.read_u8();
+        value |= ((chunk & 0b01111111) as u32) << offset;
+        offset += 7;
+        if (0b10000000 & chunk) == 0 {
+            break;
+        }
+    }
+    return value;
+}
+
+pub fn read_f64<T>(s: &mut T) -> f64 where T:CodeReader2{
+    let mut bytes: [u8; 8] = [0; 8];
+    for i in 0..8 {
+        bytes[i] = s.read_u8();
+    }
+    f64::from_be_bytes(bytes)
+}
+
+#[cfg(test)]
+mod test {
+    use crate::*;
+
+    use super::CodeReader2;
+
+    fn test_thing(slice: &[u8]) -> &[u8] {
+        let mut y = slice;
+        let a = y.read_u8();
+        let b = y.read_u8();
+        let c = y.read_u8();
+        let d = y.read_u8();
+        println!("{} {} {} {}", a, b, c, d);
+        return y;
+    }
+    #[test]
+    fn test_code_reader() {
+        let x: [u8; 8] = [1, 2, 3, 4,5,6,7,8];
+        let x2 = test_thing(&x);
+        test_thing(x2);
     }
 }

@@ -33,7 +33,9 @@ pub enum ByteCode {
     Dup = 16,
     LdQuote = 17,
     Eval = 18,
-    LdConstR = 19
+    LdConstR = 19,
+    // Loads a constant i64 value
+    LdConstI1 = 20
 }
 
 pub trait ToByteCode {
@@ -62,6 +64,7 @@ impl ToByteCode for u8 {
             17 => ByteCode::LdQuote,
             18 => ByteCode::Eval,
             19 => ByteCode::LdConstR,
+            20 => ByteCode::LdConstI1,
             _ => panic!("Invalid upcode {}", self),
         }
     }

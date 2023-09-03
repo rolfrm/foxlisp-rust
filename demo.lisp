@@ -13,5 +13,5 @@
 (println (sqrt 2.0))
 (defvar x 100)
 (println (cons x x))
-(loop (< x 150000000)
+(loop (< x 15000000)
    (set! x (+ x 1)))
