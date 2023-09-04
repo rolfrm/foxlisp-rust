@@ -1,6 +1,6 @@
 use std::{f64::consts::PI, rc::Rc};
 
-use crate::{cadr, car, is_nil, lisp_raise_error, LispContext, LispValue, Stack};
+use crate::{cadr, car, is_nil, LispContext, LispValue};
 use num::{
     self, integer::Roots, rational::Ratio, traits::AsPrimitive, BigInt, BigRational, FromPrimitive,
     ToPrimitive,
@@ -235,28 +235,6 @@ fn lisp_float(v: LispValue) -> LispValue {
         _ => LispValue::Nil,
     }
 }
-fn lisp_decf(scope: &mut Stack, v: &LispValue) -> LispValue {
-    let location = car(v);
-    let amount = cadr(v);
-    let mut amount2 = &LispValue::Integer(1);
-    if !is_nil(amount) {
-        amount2 = amount;
-    }
-
-    if let LispValue::Symbol(loc) = location {
-        let v = scope.get_value(*loc);
-        if let Some(r) = v {
-            let args = [r.clone(), amount2.clone()];
-            let result = lisp_sub(&args);
-            scope.set_value(*loc, &result);
-            return result;
-        }
-    }
-
-    lisp_raise_error(scope, "error".into());
-
-    return LispValue::Nil;
-}
 
 pub fn lisp_math_load(ctx: &mut LispContext) {
     ctx.set_global_str("+", LispValue::from_n(lisp_add));
@@ -268,6 +246,6 @@ pub fn lisp_math_load(ctx: &mut LispContext) {
 
     ctx.set_global_str("big-rational", LispValue::from_1(lisp_bigrational));
     ctx.set_global_str("float", LispValue::from_1(lisp_float));
-    ctx.set_global_str("decf", LispValue::from_macro(lisp_decf));
+    
     ctx.set_global_str("pi", LispValue::Rational(PI));
 }

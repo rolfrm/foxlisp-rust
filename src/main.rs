@@ -30,7 +30,7 @@ pub enum NativeFunc {
     Function2(fn(LispValue, LispValue) -> LispValue),
     Function1r(fn(&LispValue) -> &LispValue),
     Function2r(fn(&[LispValue]) -> &LispValue),
-    FunctionN(fn(&[LispValue]) -> LispValue)
+    FunctionN(fn(&[LispValue]) -> LispValue),
 }
 
 impl fmt::Debug for NativeFunc {
@@ -72,7 +72,6 @@ pub enum LispValue {
     BigInt(Rc<num::BigInt>),
     BigRational(Rc<num::BigRational>),
     NativeFunction(NativeFunc),
-    Macro(fn(&mut Stack, &LispValue) -> LispValue),
     LispFunction(Rc<LispFunc>),
 }
 
@@ -99,7 +98,6 @@ impl Clone for LispValue {
             LispValue::Rational(r) => LispValue::Rational(*r),
             LispValue::Symbol(s) => LispValue::Symbol(*s),
             LispValue::NativeFunction(f) => LispValue::NativeFunction(f.clone()),
-            LispValue::Macro(m) => LispValue::Macro(m.clone()),
             LispValue::LispFunction(f) => LispValue::LispFunction(f.clone()),
             LispValue::T => LispValue::T,
             LispValue::Rest => LispValue::Rest,
@@ -134,15 +132,13 @@ impl LispValue {
     pub fn from_1(item: fn(LispValue) -> LispValue) -> Self {
         LispValue::NativeFunction(NativeFunc::Function1(item))
     }
-    pub fn from_2r(item: fn(&[LispValue]) -> & LispValue) -> Self {
+    pub fn from_2r(item: fn(&[LispValue]) -> &LispValue) -> Self {
         LispValue::NativeFunction(NativeFunc::Function2r(item))
     }
     pub fn from_n(item: fn(&[LispValue]) -> LispValue) -> Self {
         LispValue::NativeFunction(NativeFunc::FunctionN(item))
     }
-    pub fn from_macro(item: fn(&mut Stack, &LispValue) -> LispValue) -> Self {
-        LispValue::Macro(item)
-    }
+
     pub fn cons(a: LispValue, b: LispValue) -> LispValue {
         LispValue::Cons(Rc::new((a, b)))
     }
@@ -175,7 +171,7 @@ impl LispValue {
     fn is_nil(&self) -> bool {
         match self {
             LispValue::Nil => true,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -388,43 +384,47 @@ impl LispValue {
             _ => false,
         }
     }
+    
+    pub fn as_car(self, cdr : LispValue) -> LispValue {
+        lisp_cons(self, cdr)
+    }
 }
 
 trait ToLisp {
     fn to_lisp(&self) -> LispValue;
 }
 
-impl ToLisp for i64{
+impl ToLisp for i64 {
     fn to_lisp(&self) -> LispValue {
         LispValue::Integer(*self)
     }
 }
 
-impl ToLisp for i32{
+impl ToLisp for i32 {
     fn to_lisp(&self) -> LispValue {
         LispValue::Integer(*self as i64)
     }
 }
 
-impl ToLisp for u64{
+impl ToLisp for u64 {
     fn to_lisp(&self) -> LispValue {
         LispValue::Integer(*self as i64)
     }
 }
 
-impl ToLisp for f64{
+impl ToLisp for f64 {
     fn to_lisp(&self) -> LispValue {
         LispValue::Rational(*self)
     }
 }
 
-impl ToLisp for String{
+impl ToLisp for String {
     fn to_lisp(&self) -> LispValue {
         LispValue::String(self.clone())
     }
 }
 
-impl ToLisp for str{
+impl ToLisp for str {
     fn to_lisp(&self) -> LispValue {
         LispValue::String(self.into())
     }
@@ -539,7 +539,6 @@ impl fmt::Display for LispValue {
             }
             LispValue::BigRational(x) => write!(f, "{}", x.to_string()),
             LispValue::NativeFunction(_) => write!(f, "Native Function"),
-            LispValue::Macro(_) => write!(f, "Macro"),
             LispValue::LispFunction(_) => write!(f, "LispFunction"),
             LispValue::Rest => write!(f, "&REST"),
             LispValue::T => write!(f, "T"),
@@ -586,7 +585,7 @@ pub struct LispScope2 {
     func: Rc<LispFunc>,
     argoffset: usize,
     reader: CodeReader,
-    local_vars: Vec<LetScope>
+    local_vars: Vec<LetScope>,
 }
 
 impl LispScope2 {
@@ -595,7 +594,7 @@ impl LispScope2 {
             func,
             argoffset,
             reader,
-            local_vars: Vec::new()
+            local_vars: Vec::new(),
         }
     }
     pub fn get_arg_offset(&self, symid: i32) -> Option<usize> {
@@ -635,24 +634,34 @@ pub struct LispContext {
 
     arg_stack: Vec<LispValue>,
     current_scope: Vec<LispScope2>,
-    current_error: Option<String>,
-    
-    quote_store: Vec<LispValue>
+    current_error: LispValue,
+
+    quote_store: Vec<LispValue>,
 }
 
 impl LispContext {
-
     pub fn push_local_var(&mut self, scope: LetScope) {
-        self.current_scope.last_mut().unwrap().local_vars.push(scope);
+        self.current_scope
+            .last_mut()
+            .unwrap()
+            .local_vars
+            .push(scope);
+    }
+    
+    pub fn panic_if_error(&self) {
+        if self.current_error.is_nil() {
+            return;
+        }
+        panic!("{}", self.current_error);
     }
 
-    pub fn get_quote_store(&mut self, v: &LispValue) -> i32{
+    pub fn get_quote_store(&mut self, v: &LispValue) -> i32 {
         let id = self.quote_store.len() as i32;
         self.quote_store.push(v.clone());
         return id;
     }
 
-    pub fn lookup_quote(&self, id: i32) -> &LispValue{
+    pub fn lookup_quote(&self, id: i32) -> &LispValue {
         self.quote_store.get(id as usize).unwrap()
     }
 
@@ -661,20 +670,17 @@ impl LispContext {
         return None;
     }
 
-    fn eval(&mut self, code: &dyn LispEvalable) -> Option<LispValue> {
-        let mut stk = Stack::new_root(self);
-        stk.eval(code);
-        stk.error
+    fn eval(&mut self, code: &LispValue) -> LispValue {
+        lisp_compile_and_eval(self, code)
     }
-    fn eval_str(&mut self, code: &str) -> Option<LispValue> {
-        let mut stk = Stack::new_root(self);
-        stk.eval(code);
-        stk.error
+
+    fn eval_str(&mut self, code: &str) -> LispValue {
+        lisp_compile_and_eval_string(self, code)
     }
+
     fn get_reader(&self) -> Option<&CodeReader> {
         for x in self.current_scope.iter().rev() {
             return Some(&x.reader);
-            
         }
         return None;
     }
@@ -711,7 +717,9 @@ pub trait LispSymbolName {
 
 impl LispSymbolName for i32 {
     fn symbol_name(&self, ctx: &LispContext) -> Option<String> {
-        ctx.symbol_name_lookup.get(*self as usize).and_then(|x| Some(x.clone()))
+        ctx.symbol_name_lookup
+            .get(*self as usize)
+            .and_then(|x| Some(x.clone()))
     }
 }
 
@@ -724,7 +732,7 @@ impl LispSymbolName for LispValue {
     }
 }
 
-pub trait IntoSymbol{
+pub trait IntoSymbol {
     fn to_symbol(&self) -> LispValue;
 }
 
@@ -732,20 +740,6 @@ impl IntoSymbol for i32 {
     fn to_symbol(&self) -> LispValue {
         LispValue::Symbol(*self)
     }
-}
-
-#[derive(Debug)]
-pub struct LispScope<'a> {
-    id: &'a [i32],
-    values: &'a mut [LispValue],
-    parent: &'a Option<Box<LispScope<'a>>>,
-}
-
-#[derive(Debug)]
-pub struct Stack<'a> {
-    local_scope: Option<Box<LispScope<'a>>>,
-    global_scope: &'a mut LispContext,
-    error: Option<LispValue>,
 }
 
 pub struct ConsIter<'a> {
@@ -783,91 +777,8 @@ pub fn update_symbol_names(ctx: &LispContext) {
         }
     });
 }
-impl<'a> Stack<'a> {
-    fn new_root(ctx: &'a mut LispContext) -> Self {
-        Stack {
-            local_scope: None,
-            global_scope: ctx,
-            error: None,
-        }
-    }
-    fn new_local(ctx: &'a mut LispContext, local: LispScope<'a>) -> Self {
-        Stack {
-            local_scope: Some(Box::new(local)),
-            global_scope: ctx,
-            error: None,
-        }
-    }
 
-    fn eval<T>(&mut self, code: &T) -> LispValue
-    where
-        T: LispEvalable + ?Sized,
-    {
-        let code = code.to_evalable(self.global_scope);
-        let src = &self.global_scope.symbol_name_lookup;
-
-        CURRENT_NAMES.with(|v| {
-            let mut v = v.borrow_mut();
-            if v.len() != src.len() {
-                v.clear();
-                for s in src.iter() {
-                    v.push(s.clone());
-                }
-            }
-        });
-        if let Some(c) = code {
-            return lisp_eval(self, &c);
-        } else {
-            lisp_raise_error(self, LispValue::String("Unable to parse code".to_string()));
-        }
-        LispValue::Nil
-    }
-
-    fn get_value(&self, symbol_name: i32) -> Option<&LispValue> {
-        if let Some(l) = &self.local_scope {
-            if let Some(r) = l.get_value(symbol_name) {
-                return Some(r);
-            }
-        }
-        return self.global_scope.get_value(symbol_name);
-    }
-
-    fn set_value(&mut self, symbol_name: i32, value: &LispValue) {
-        if let Some(l) = &mut self.local_scope {
-            if l.set_value(symbol_name, value) {
-                return;
-            }
-        }
-        self.global_scope.set_value(symbol_name, value.clone());
-    }
-}
-
-impl<'a> LispScope<'a> {
-    fn get_value(&self, symbol_name: i32) -> Option<&LispValue> {
-        for i in 0..self.id.len() {
-            if self.id[i] == symbol_name {
-                return Some(&self.values[i]);
-            }
-        }
-
-        if let Some(p) = &self.parent {
-            p.get_value(symbol_name)
-        } else {
-            None
-        }
-    }
-    fn set_value(&mut self, symbol_name: i32, value: &LispValue) -> bool {
-        for i in 0..self.id.len() {
-            if self.id[i] == symbol_name {
-                self.values[i] = value.clone();
-                return true;
-            }
-        }
-        return false;
-    }
-}
-
-impl<'a> LispContext {
+impl LispContext {
     fn new() -> LispContext {
         return LispContext {
             symbols: HashMap::new(),
@@ -876,9 +787,13 @@ impl<'a> LispContext {
             global_names: Vec::with_capacity(10),
             arg_stack: Vec::new(),
             current_scope: Vec::new(),
-            current_error: None,
-            quote_store: Vec::new()
+            current_error: LispValue::Nil,
+            quote_store: Vec::new(),
         };
+    }
+    
+    pub fn raise_error(&mut self, error: LispValue){
+        self.current_error = error
     }
     pub fn find_symbol(&self, name: &str) -> LispValue {
         if let Option::Some(id) = self.symbols.get(name) {
@@ -934,7 +849,7 @@ impl<'a> LispContext {
     }
 
     fn get_value(&self, symid: i32) -> Option<&LispValue> {
-        let mut place : Option<usize> = None; 
+        let mut place: Option<usize> = None;
         if let Some(scope) = self.current_scope.last() {
             for let_var in scope.local_vars.iter().rev() {
                 if let_var.sym == symid {
@@ -954,7 +869,7 @@ impl<'a> LispContext {
     }
 
     fn set_value(&mut self, symid: i32, v: LispValue) -> bool {
-        let mut place : Option<usize> = None; 
+        let mut place: Option<usize> = None;
         if let Some(scope) = self.current_scope.last() {
             for let_var in scope.local_vars.iter().rev() {
                 if let_var.sym == symid {
@@ -979,211 +894,8 @@ fn eq(a: &LispValue, b: &LispValue) -> bool {
     a == b
 }
 
-fn lisp_raise_error(ctx: &mut Stack, error: LispValue) {
-    ctx.error = Some(error);
-}
-
 fn cons_count(v: &LispValue) -> i64 {
     v.to_iter().count() as i64
-}
-
-fn lisp_invoken<'a>(
-    ctx: &mut Stack,
-    argsl: &'a LispValue,
-    fcn: fn(Vec<LispValue>) -> LispValue,
-) -> LispValue {
-    let mut args: Vec<LispValue> = Vec::with_capacity(cons_count(argsl) as usize);
-
-    for it in argsl.to_iter() {
-        let r = lisp_eval(ctx, it);
-        args.push(r);
-    }
-    let args2 = args;
-    let r2 = fcn(args2);
-    return r2;
-}
-fn lisp_invokenr<'a>(
-    ctx: &mut Stack,
-    argsl: &'a LispValue,
-    fcn: fn(&[LispValue]) -> LispValue,
-) -> LispValue {
-    let mut args = [
-        LispValue::Nil,
-        LispValue::Nil,
-        LispValue::Nil,
-        LispValue::Nil,
-        LispValue::Nil,
-        LispValue::Nil,
-        LispValue::Nil,
-        LispValue::Nil,
-        LispValue::Nil,
-        LispValue::Nil,
-    ];
-    let mut itv = 0;
-    for it in argsl.to_iter() {
-        let r = lisp_eval(ctx, it);
-        args[itv] = r;
-        itv += 1;
-    }
-
-    let r2 = fcn(&args[0..itv]);
-    return r2;
-}
-
-fn lisp_invoke2<'a>(
-    ctx: &mut Stack,
-    v: &'a LispValue,
-    fcn: fn(LispValue, LispValue) -> LispValue,
-) -> LispValue {
-    let a1 = lisp_eval(ctx, car(v));
-    let a2 = lisp_eval(ctx, cadr(v));
-    return (fcn)(a1, a2);
-}
-
-fn lisp_invoke1<'a>(
-    ctx: &mut Stack,
-    v: &'a LispValue,
-    fcn: fn(LispValue) -> LispValue,
-) -> LispValue {
-    let a1 = lisp_eval(ctx, car(v));
-    return (fcn)(a1);
-}
-
-fn lisp_invoke2r<'a>(
-    ctx: &mut Stack,
-    v: &'a LispValue,
-    fcn: for<'b> fn(&'b LispValue, &'b LispValue) -> &'b LispValue,
-) -> LispValue {
-    let a1 = lisp_eval(ctx, car(v));
-    let a2 = lisp_eval(ctx, cadr(v));
-    return (fcn)(&a1, &a2).clone();
-}
-
-fn lisp_invoke1r<'a>(
-    ctx: &mut Stack,
-    v: &'a LispValue,
-    fcn: fn(&LispValue) -> &LispValue,
-) -> LispValue {
-    let a1 = lisp_eval(ctx, car(v));
-    return (fcn)(&a1).clone();
-}
-
-fn lisp_eval_lisp_function<'a>(ctx: &mut Stack, func: &LispFunc, args: &'a LispValue) -> LispValue {
-    let mut i: usize = 0;
-    let mut it = args;
-
-    let mut argcnt = func.args_names.len();
-    let mut cap = argcnt;
-    if func.variadic {
-        argcnt = argcnt - 1;
-        cap = 2;
-    }
-
-    let mut arg_veca = Vec::with_capacity(cap);
-
-    while is_cons(it) && i < argcnt {
-        arg_veca.push(lisp_eval(ctx, car(it)));
-        i += 1;
-        it = cdr(it);
-    }
-    if i < argcnt {
-        lisp_raise_error(
-            ctx,
-            "Not enough required arguments to satisfy function.".into(),
-        );
-        return LispValue::Nil;
-    }
-    if func.variadic {
-        fn listeval(ctx: &mut Stack, v: &LispValue) -> LispValue {
-            let v0 = car(v);
-            let rest = cdr(v);
-            if is_nil(rest) {
-                return LispValue::cons(lisp_eval(ctx, v0), LispValue::Nil);
-            }
-            LispValue::cons(lisp_eval(ctx, v0), listeval(ctx, rest))
-        }
-        let lst = listeval(ctx, it);
-        arg_veca.push(lst);
-    } else if is_cons(it) {
-        lisp_raise_error(ctx, "Too many arguments for function.".into());
-        return LispValue::Nil;
-    }
-
-    let scope = LispScope {
-        id: func.args_names.as_slice(),
-        values: arg_veca.as_mut_slice(),
-        parent: match func.magic {
-            true => &ctx.local_scope,
-            false => &None,
-        },
-    };
-
-    let mut stack2 = Stack::new_local(ctx.global_scope, scope);
-
-    let mut result = LispValue::Nil;
-    for form in func.code.to_iter() {
-        result = lisp_eval(&mut stack2, form);
-    }
-    ctx.error = stack2.error;
-
-    result
-}
-
-fn lisp_eval<'a>(ctx: &'a mut Stack, v: &'a LispValue) -> LispValue {
-    if let Some(e) = &ctx.error {
-        ctx.error = Some(LispValue::String(format!("{}\nat {}", e, v)));
-        return LispValue::Nil;
-    }
-    match v {
-        LispValue::Cons(a) => {
-            let value = lisp_eval(ctx, &a.0);
-
-            match value {
-                LispValue::NativeFunction(n) => {
-                    let prev_count = ctx.global_scope.arg_stack.len();
-
-                    for it in v.to_iter().skip(1) {
-                        let r = lisp_eval(ctx, it);
-
-                        ctx.global_scope.arg_stack.push(r);
-                    }
-                    let slice = &ctx.global_scope.arg_stack[prev_count..];
-
-                    let result: (i32, LispValue) = match n {
-                        NativeFunc::Function1(f) => (1, (f)(slice[0].clone())),
-                        NativeFunc::Function2(f) => (2, (f)(slice[0].clone(), slice[1].clone())),
-                        NativeFunc::Function1r(f) => (1, (f)(&slice[0]).clone()).clone(),
-                        NativeFunc::Function2r(f) => (2, (f)(&slice[0..2]).clone()),
-                        NativeFunc::FunctionN(f) => (slice.len() as i32, (f)(slice))
-                    };
-                    ctx.global_scope.arg_stack.truncate(prev_count);
-                    return result.1;
-                }
-
-                LispValue::Macro(mf) => return (mf)(ctx, cdr(v)),
-                LispValue::LispFunction(lf) => {
-                    return lisp_eval_lisp_function(ctx, &lf, cdr(v));
-                }
-
-                _ => lisp_raise_error(ctx, format!("no such function: {}", car(v)).into()),
-            }
-            return LispValue::Nil;
-        }
-        LispValue::Symbol(id) => {
-            if let Some(value) = ctx.get_value(*id) {
-                return value.clone();
-            } else {
-                lisp_raise_error(ctx, format!("No such symbol! {} {:#?}", v, ctx).into());
-                return LispValue::Nil;
-            }
-        }
-        _ => v.clone(),
-    }
-}
-
-fn lisp_eval_str(ctx: &mut Stack, code: &str) -> LispValue {
-    let code2 = parse_from_string(ctx.global_scope, code);
-    return lisp_eval(ctx, &code2);
 }
 
 fn lisp_load_str(ctx: &mut LispContext, code: &str) -> Option<LispValue> {
@@ -1193,30 +905,29 @@ fn lisp_load_str(ctx: &mut LispContext, code: &str) -> Option<LispValue> {
         let mut wd = CodeWriter::new();
 
         lisp_compile(ctx, &c, &mut wd).unwrap();
-            
+
         let mut bytecode = bytecode_to_lisp(&mut wd.bytes.as_slice(), ctx);
         bytecode = optimize_bytecode(bytecode);
         println!("Optimized bytecode: {}", bytecode);
         //    lisp_bytecode_print(&mut CodeReader::new(wd.bytes.clone()), ctx);
 
-            let code_reader = CodeReader::new(wd.bytes.clone());
+        let code_reader = CodeReader::new(wd.bytes.clone());
 
-            let lf = LispFunc {
-                code: c.clone(),
-                compiled_code: wd.bytes.clone(),
-                args_names: Vec::new(),
-                magic: false,
-                variadic: false,
-            };
+        let lf = LispFunc {
+            code: c.clone(),
+            compiled_code: wd.bytes.clone(),
+            args_names: Vec::new(),
+            magic: false,
+            variadic: false,
+        };
 
-            let s2 = LispScope2::new(Rc::new(lf), 0, code_reader);
+        let s2 = LispScope2::new(Rc::new(lf), 0, code_reader);
 
-            ctx.current_scope.push(s2);
+        ctx.current_scope.push(s2);
 
-            lisp_eval_bytecode(ctx);
-            ctx.current_scope.pop();
-            let result = ctx.arg_stack.pop().unwrap();
-        
+        lisp_eval_bytecode(ctx);
+        ctx.current_scope.pop();
+        let result = ctx.arg_stack.pop().unwrap();
     }
     None
 }
@@ -1263,34 +974,32 @@ mod test {
     fn bignum_test() {
         let mut ctx = lisp_load_basic();
 
-        let mut stk = Stack::new_root(&mut ctx);
-        lisp_eval_str(&mut stk, "(defvar big1 1000000)");
-        assert!(stk.error.is_none());
-        lisp_eval_str(&mut stk, "(defvar big2 (* big1 big1 big1 big1 big1 big1))");
-        assert!(stk.error.is_none());
-        lisp_eval_str(&mut stk, "(println big2)");
-        assert!(stk.error.is_none());
-        lisp_eval_str(&mut stk, "(defvar big3 (/ big2 big1 big1 big1 big1 big1))");
-        assert!(stk.error.is_none());
-        lisp_eval_str(&mut stk, "(println (list big3 big2 big1))");
-        assert!(stk.error.is_none());
-        lisp_eval_str(&mut stk, "(assert (println (equals big3 big1)))");
-        assert!(stk.error.is_none());
-        lisp_eval_str(&mut stk, "(assert (not (equals big2 big1)))");
-        update_symbol_names(&mut stk.global_scope);
-        println!("{:?}", stk.error);
-        assert!(stk.error.is_none());
+        ctx.eval_str("(defvar big1 1000000)");
+        ctx.eval_str("(defvar big2 (* big1 big1 big1 big1 big1 big1))");
+        ctx.eval_str("(println big2)");
+        ctx.eval_str("(defvar big3 (/ big2 big1 big1 big1 big1 big1))");
+        ctx.eval_str("(println (list big3 big2 big1))");
+        ctx.eval_str("(assert (println (equals big3 big1)))");
+        ctx.eval_str("(assert (not (equals big2 big1)))");
+        update_symbol_names(&mut ctx);
+        assert!(ctx.current_error.is_nil());
     }
 
+    #[test]
+    fn test_error(){
+        let mut ctx = lisp_load_basic();
+        ctx.eval_str("(assert nil)");
+        ctx.panic_if_error();
+        
+    }
     #[test]
     fn eval_test() {
         let mut ctx = lisp_load_basic();
 
-        let mut stk = Stack::new_root(&mut ctx);
-        stk.eval("(println assert)");
-        stk.eval("(assert (eq 1 0))");
+        ctx.eval_str("(println assert)");
+        ctx.eval_str("(assert (eq 1 0))");
 
-        assert!(stk.error.is_some());
+        assert!(ctx.current_error.is_nil());
     }
 
     #[test]
@@ -1300,11 +1009,10 @@ mod test {
         let err = ctx.load("(assert (println (eq 1 1)))");
         assert!(err.is_none());
 
-        let mut stk = Stack::new_root(&mut ctx);
-        stk.eval("(assert (not (eq 1 0)))");
-        stk.eval("(assert (not (eq (println (quote a)) (quote b))))");
+        ctx.eval_str("(assert (not (eq 1 0)))");
+        ctx.eval_str("(assert (not (eq (println (quote a)) (quote b))))");
 
-        assert!(stk.error.is_none());
+        assert!(ctx.current_error.is_nil());
     }
 
     #[test]
@@ -1349,30 +1057,28 @@ mod test {
         assert!(!eq(&ctx.get_symbol("asdd"), cadddr(&out)));
         let code2 = parse_from_string(&mut ctx, "(cdr (println  (cons (+ 1 2 3.14) (cons (* 1000 (+ 1234 9999 4321 1111 (- 1000 1000 1000))) 1))))");
 
-        let mut stk = Stack::new_root(&mut ctx);
+        ctx.eval(&code2);
+        ctx.eval_str("(println (list 1 2 3))");
 
-        lisp_eval(&mut stk, &code2);
-        stk.eval("(println (list 1 2 3))");
-
-        stk.eval("(let ((x 10)) (println (list 1 2 3 x)))");
-        stk.eval(
+        ctx.eval_str("(let ((x 10)) (println (list 1 2 3 x)))");
+        ctx.eval_str(
             "(println (let ((x 10)) (println x) (set! x 5) (println x) (not (not (eq x 10)))))",
         );
-        stk.eval("(println (let ((x 5)) (loop (not (eq x 0)) (println (set! x (- x 1))))))");
-        stk.eval( "(println (* (big-rational 10000) 10000 10000 10000 100000 10000000 100000 1000000 100000 10000))");
-        stk.eval("(println (car (println (cdr (cdr (list 1 2 3 4 5 6 7 8))))))");
-        stk.eval("(println (list 1 2 3 4 5 6 7 (cons 8 9)))");
-        stk.eval("(println (if 1 2 3))");
-        stk.eval("(println (if () 2 3))");
+        ctx.eval_str("(println (let ((x 5)) (loop (not (eq x 0)) (println (set! x (- x 1))))))");
+        ctx.eval_str( "(println (* (big-rational 10000) 10000 10000 10000 100000 10000000 100000 1000000 100000 10000))");
+        ctx.eval_str("(println (car (println (cdr (cdr (list 1 2 3 4 5 6 7 8))))))");
+        ctx.eval_str("(println (list 1 2 3 4 5 6 7 (cons 8 9)))");
+        ctx.eval_str("(println (if 1 2 3))");
+        ctx.eval_str("(println (if () 2 3))");
 
-        stk.eval("(println (let ((a 1)) (let ((b 2)) (println (+ a b)))))");
-        stk.eval("(println (let ((a 2) (b 3) (c 5)) (* a b c)))");
-        stk.eval("(println (let ((x 10000)) (loop (not (eq x 0)) (set! x (- x 1))) x))");
+        ctx.eval_str("(println (let ((a 1)) (let ((b 2)) (println (+ a b)))))");
+        ctx.eval_str("(println (let ((a 2) (b 3) (c 5)) (* a b c)))");
+        ctx.eval_str("(println (let ((x 10000)) (loop (not (eq x 0)) (set! x (- x 1))) x))");
 
-        stk.eval("(defun print2 (a) (println ;;hello world\n (+ 5 a 1.3)))");
-        stk.eval("(assert (println (print2 123)))");
-        stk.eval("(defun pow2 (a) (* a a))");
-        println!("{}", stk.eval("(pow2 10)"));
-        assert!(stk.error.is_none());
+        ctx.eval_str("(defun print2 (a) (println ;;hello world\n (+ 5 a 1.3)))");
+        ctx.eval_str("(assert (println (print2 123)))");
+       ctx.eval_str("(defun pow2 (a) (* a a))");
+        println!("{}", ctx.eval_str("(pow2 10)"));
+        assert!(ctx.current_error.is_nil());
     }
 }
