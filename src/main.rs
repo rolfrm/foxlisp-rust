@@ -665,9 +665,8 @@ impl LispContext {
         self.quote_store.get(id as usize).unwrap()
     }
 
-    fn load(&mut self, code: &str) -> Option<LispValue> {
-        lisp_load_str(self, code);
-        return None;
+    fn load(&mut self, code: &str) -> LispValue {
+        lisp_load_str(self, code)
     }
 
     fn eval(&mut self, code: &LispValue) -> LispValue {
@@ -898,8 +897,9 @@ fn cons_count(v: &LispValue) -> i64 {
     v.to_iter().count() as i64
 }
 
-fn lisp_load_str(ctx: &mut LispContext, code: &str) -> Option<LispValue> {
+fn lisp_load_str(ctx: &mut LispContext, code: &str) -> LispValue {
     let mut bytes = code.as_bytes();
+    let mut result = LispValue::Nil;
     while let Some(c) = parse_bytes(ctx, &mut bytes) {
         update_symbol_names(&ctx);
         let mut wd = CodeWriter::new();
@@ -927,9 +927,9 @@ fn lisp_load_str(ctx: &mut LispContext, code: &str) -> Option<LispValue> {
 
         lisp_eval_bytecode(ctx);
         ctx.current_scope.pop();
-        let result = ctx.arg_stack.pop().unwrap();
+        result = ctx.arg_stack.pop().unwrap();
     }
-    None
+    return result;
 }
 
 fn lisp_eval_file(ctx: &mut LispContext, code: &str) {
@@ -989,7 +989,7 @@ mod test {
     fn test_error(){
         let mut ctx = lisp_load_basic();
         ctx.eval_str("(assert nil)");
-        ctx.panic_if_error();
+        assert!(ctx.current_error.is_nil() == false);
         
     }
     #[test]
@@ -997,17 +997,16 @@ mod test {
         let mut ctx = lisp_load_basic();
 
         ctx.eval_str("(println assert)");
-        ctx.eval_str("(assert (eq 1 0))");
-
-        assert!(ctx.current_error.is_nil());
+        ctx.eval_str("(assert (eq 1 1))");
+        ctx.panic_if_error();
     }
 
     #[test]
     fn eq_test() {
         let mut ctx = lisp_load_basic();
 
-        let err = ctx.load("(assert (println (eq 1 1)))");
-        assert!(err.is_none());
+        ctx.load("(assert (println (eq 1 1)))");
+        assert!(ctx.current_error.is_nil());
 
         ctx.eval_str("(assert (not (eq 1 0)))");
         ctx.eval_str("(assert (not (eq (println (quote a)) (quote b))))");
@@ -1018,17 +1017,17 @@ mod test {
     #[test]
     fn if_test() {
         let mut ctx = lisp_load_basic();
-        let err = ctx.load("(if 1 () (raise (quote error)))");
-        assert!(err.is_none());
+        ctx.load("(if 1 () (raise (quote error)))");
+        assert!(ctx.current_error.is_nil());
         let err = ctx.load("(if () (raise (quote error)) 1)");
-        assert!(err.is_none());
+        assert!(ctx.current_error.is_nil());
     }
 
     #[test]
     fn raise_test() {
         let mut ctx = lisp_load_basic();
-        let err = ctx.load("(raise (quote error))");
-        assert!(err.is_some());
+        ctx.load("(raise (quote error))");
+        assert!(ctx.current_error.is_nil() == false);
     }
 
     #[test]
