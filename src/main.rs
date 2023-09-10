@@ -637,6 +637,7 @@ pub struct LispContext {
     current_error: LispValue,
 
     quote_store: Vec<LispValue>,
+    panic_on_error : bool
 }
 
 impl LispContext {
@@ -675,6 +676,12 @@ impl LispContext {
 
     fn eval_str(&mut self, code: &str) -> LispValue {
         lisp_compile_and_eval_string(self, code)
+    }
+    
+    fn parse(&mut self, code: &str) -> Option<LispValue> {
+        let mut code_bytes = code.as_bytes();
+        let c1 = parse_bytes(self, &mut code_bytes);
+        return c1;
     }
 
     fn get_reader(&self) -> Option<&CodeReader> {
@@ -788,11 +795,17 @@ impl LispContext {
             current_scope: Vec::new(),
             current_error: LispValue::Nil,
             quote_store: Vec::new(),
+            panic_on_error: false
         };
     }
     
     pub fn raise_error(&mut self, error: LispValue){
-        self.current_error = error
+        
+        if self.panic_on_error {
+            panic!("{}", error);
+        }else{
+            self.current_error = error;
+        }
     }
     pub fn find_symbol(&self, name: &str) -> LispValue {
         if let Option::Some(id) = self.symbols.get(name) {

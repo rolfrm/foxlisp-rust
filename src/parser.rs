@@ -1,3 +1,5 @@
+use num::{BigInt, FromPrimitive};
+
 use crate::*;
 
 fn parse_integer<'a>(code0: &'a [u8], val: &mut i64) -> Option<&'a [u8]> {
@@ -15,6 +17,51 @@ fn parse_integer<'a>(code0: &'a [u8], val: &mut i64) -> Option<&'a [u8]> {
     if code.len() > 0 && code[0] != b')' && code[0] != b' ' {
         return None;
     }
+    return Option::Some(code);
+}
+
+fn parse_integer_lisp_value<'a>(code0: &'a [u8], val: &mut LispValue) -> Option<&'a [u8]> {
+    
+    if code0.len() == 0 {
+        return None;
+    }
+    
+    let mut code = code0;
+    if !(code[0] >= b'0' && code[0] <= b'9') {
+        return None;
+    }
+    let mut outvar : i64 = 0;
+    while code.len() > 0 && code[0] >= b'0' && code[0] <= b'9' {
+        let outvar_checked = outvar.checked_mul(10);
+        if let Some(outvar2) = outvar_checked {
+            let charcode = code[0] - b'0';
+            outvar = outvar2 + (u64::from(charcode) as i64);
+            code = &code[1..]
+        }else{
+            let mut v2 = LispValue::Nil;
+            let rest_code = parse_integer_lisp_value(code, &mut v2);
+            if rest_code.is_some(){ // this means that the i64 oveflowed so we need to shift it based on log10(i64::max)
+                //let shift = i64::MAX.ilog10();
+                let offset = code.len() - rest_code.unwrap().len();
+                let shift = offset as u32;
+                let bigi = BigInt::from_i64(10).unwrap().pow(shift);
+                let bigi = LispValue::BigInt(Rc::new(bigi * outvar));
+                let vals = [bigi, v2];
+                *val = lisp_add(&vals);
+                
+                return rest_code;
+            }else{
+                return None;
+            }
+        }
+        
+    }
+    
+    if code.len() > 0 && code[0] != b')' && code[0] != b' ' {
+        return None;
+    }
+    
+    *val = LispValue::Integer(outvar);
     return Option::Some(code);
 }
 
@@ -55,6 +102,9 @@ fn skip_whitespace_and_comment(code: &[u8]) -> &[u8] {
 fn parse_rational<'a>(code0: &'a [u8], val: &mut f64) -> Option<&'a [u8]> {
     *val = 0.0;
     let mut code = code0;
+    if code.len() == 0 || !(code[0] >= b'0' && code[0] <= b'9' ) {
+        return None;
+    }
     while code.len() > 0 && code[0] >= b'0' && code[0] <= b'9' {
         *val = *val * 10.0;
         let charcode = code[0] - b'0';
@@ -127,24 +177,40 @@ fn parse_symbol<'a>(
 pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -> Option<&'a [u8]> {
     let mut code2 = code;
     code2 = skip_whitespace_and_comment(code2);
-
-    let mut integer_value: i64 = 0;
-    if let Some(code3) = parse_integer(code2, &mut integer_value) {
-        *value = LispValue::Integer(integer_value);
+    let prev_neg = code2;
+    let negative = 
+        if code2.len() > 0 && code2[0] == b'-' {
+          code2 = &code2[1..];
+            true
+        }else{
+          false
+      };
+    
+    if let Some(code3) = parse_integer_lisp_value(code2, value) {
+        if negative {
+            let v = [value.clone()];
+            *value = lisp_sub(&v);
+        }
         return Option::Some(code3);
     }
+    
     let mut rational_value: f64 = 0.0;
     if let Some(code3) = parse_rational(code2, &mut rational_value) {
         *value = LispValue::Rational(rational_value);
+        if negative {
+            let v = [value.clone()];
+            *value = lisp_sub(&v);
+        }
         return Option::Some(code3);
+    }
+    if negative {
+        code2 = prev_neg;
     }
 
     if code2.len() == 0 {
         return None;
     }
-
-
-
+    
     if code2[0] == b'(' {
         code2 = &code2[1..];
 
@@ -207,9 +273,9 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
         if code2.len() > 0 && code2[0] == b':' {
             keyword = true
         }
-        let mut quote = false;
+        
         if code2[0] == b'\'' {
-            quote = true;
+        
             code2 = &code2[1..];
             let mut lv = LispValue::Nil;
             if let Some(c) = parse(ctx, code2, &mut lv) {
@@ -305,4 +371,6 @@ mod test {
         let qname = ctx.get_symbol_name(car(&value)).unwrap();
         assert_eq!("quote", qname);
     }
+    
+    
 }

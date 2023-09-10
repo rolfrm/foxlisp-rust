@@ -1,4 +1,4 @@
-use std::{f64::consts::PI, rc::Rc};
+use std::{f64::consts::PI, rc::Rc, ops::Neg};
 
 use crate::{cadr, car, is_nil, LispContext, LispValue};
 use num::{
@@ -173,23 +173,34 @@ fn lisp_apply_numbers(v: &[LispValue], func: &NumericFunc) -> LispValue {
     LispValue::Nil
 }
 
-fn lisp_add(v: &[LispValue]) -> LispValue {
+pub fn lisp_add(v: &[LispValue]) -> LispValue {
     lisp_apply_numbers(&v, &ADD_OP)
 }
 
-fn lisp_sub(v: &[LispValue]) -> LispValue {
-    lisp_apply_numbers(&v, &SUB_OP)
+pub fn lisp_sub(v: &[LispValue]) -> LispValue {
+    if v.len() == 1 {
+        match &v[0] {
+            LispValue::BigInt(v) => LispValue::BigInt(Rc::new(v.as_ref().neg())),
+            LispValue::BigRational(v) => LispValue::BigRational(Rc::new(v.as_ref().neg())),
+            LispValue::Integer(v) => LispValue::Integer(v.neg()),
+            LispValue::Rational(v) => LispValue::Rational(v.neg()),
+            _ => LispValue::Nil
+            
+        }
+    }else{
+        lisp_apply_numbers(&v, &SUB_OP)
+    }
 }
 
-fn lisp_mul(v: &[LispValue]) -> LispValue {
+pub fn lisp_mul(v: &[LispValue]) -> LispValue {
     lisp_apply_numbers(&v, &MUL_OP)
 }
 
-fn lisp_div(v: &[LispValue]) -> LispValue {
+pub fn lisp_div(v: &[LispValue]) -> LispValue {
     lisp_apply_numbers(&v, &DIV_OP)
 }
 
-fn lisp_pow(v: &[LispValue]) -> LispValue {
+pub fn lisp_pow(v: &[LispValue]) -> LispValue {
     lisp_apply_numbers(&v, &POW_OP)
 }
 fn lisp_sqrt(v: LispValue) -> LispValue {
@@ -248,4 +259,23 @@ pub fn lisp_math_load(ctx: &mut LispContext) {
     ctx.set_global_str("float", LispValue::from_1(lisp_float));
     
     ctx.set_global_str("pi", LispValue::Rational(PI));
+}
+
+#[cfg(test)]
+mod test {
+
+    use crate::*;
+
+    #[test]
+    fn test_basic_math() {
+        let mut ctx = lisp_load_basic();
+        ctx.panic_on_error = true;
+        ctx.eval_str("(assert (eq (- 0 1) -1))");
+        ctx.eval_str("(assert (eq (- 1) -1))");
+        ctx.eval_str("(assert (eq (- 1 5) -4))");
+        
+
+    }
+    
+    
 }
