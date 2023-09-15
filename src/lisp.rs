@@ -150,6 +150,27 @@ fn lisp_lt(a: &[LispValue]) -> &LispValue {
     return &LispValue::Nil;
 }
 
+fn lisp_type_of(ctx: &mut LispContext, a: &[LispValue]) -> LispValue {
+    match a[0] {
+        LispValue::Integer(_) => ctx.get_symbol("I64"),
+        LispValue::Rational(_) => ctx.get_symbol("F64"),
+        LispValue::BigInt(_) => ctx.get_symbol("BigInteger"),
+        LispValue::BigRational(_) => ctx.get_symbol("BigRational"),
+        LispValue::T => ctx.get_symbol("T"),
+        LispValue::String(_) => ctx.get_symbol("String"),
+        LispValue::Nil => LispValue::Nil,
+        _ => panic!("Unknown type!")
+    }
+}
+
+pub fn lisp_raise(ctx: &mut LispContext, error: &[LispValue]) -> LispValue {
+    if ctx.panic_on_error {
+        panic!("panic: {}", error[0]);
+    }
+    ctx.current_error = error[0].clone();
+    return LispValue::Nil;
+}
+
 pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str(
         "println",
@@ -171,6 +192,30 @@ pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str("equals", LispValue::from_2r(lisp_equals));
     ctx.set_global_str("not", LispValue::from_1r(lisp_not));
     ctx.set_global_str("list", LispValue::from_n(lisp_conss));
+    ctx.set_global_str("type-of", LispValue::from_n_macrolike(lisp_type_of));
+    ctx.set_global_str("raise", LispValue::from_n_macrolike(lisp_raise));
     
     ctx.eval_str("(defun assert (cond) (if cond 1 (raise '(assert failed))))");
+    
+    ctx.eval_str("(let ((values '(123.0 123 \"aaa\"))) (loop values (set! values (cdr values)) (println (type-of (car values)))))");
+    ctx.eval_str("(let ((values '(BigInteger BigRational))))");
+}
+
+
+#[cfg(test)]
+mod test {
+
+    use crate::*;
+
+    #[test]
+    fn type_of_test() {
+        let mut ctx = lisp_load_basic();
+        
+        let tests = [("(type-of 123)", "I64"), ("(type-of 123.0)", "F64"), ("(type-of \"asd\")", "String"), ("(type-of 123)", "I64")];
+        for x in tests {
+            let result = ctx.eval_str(x.0);
+        assert_eq!(result, ctx.get_symbol(x.1));
+        }
+        
+    }
 }

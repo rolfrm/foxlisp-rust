@@ -6,6 +6,7 @@ use std::rc::Rc;
 use std::{env, u128};
 mod lisp;
 use lisp::*;
+use num::{BigInt, FromPrimitive};
 mod math;
 use math::*;
 use std::cell::RefCell;
@@ -31,6 +32,7 @@ pub enum NativeFunc {
     Function1r(fn(&LispValue) -> &LispValue),
     Function2r(fn(&[LispValue]) -> &LispValue),
     FunctionN(fn(&[LispValue]) -> LispValue),
+    FunctionMacroLike(fn(&mut LispContext, &[LispValue]) ->LispValue)
 }
 
 impl fmt::Debug for NativeFunc {
@@ -138,6 +140,10 @@ impl LispValue {
     pub fn from_n(item: fn(&[LispValue]) -> LispValue) -> Self {
         LispValue::NativeFunction(NativeFunc::FunctionN(item))
     }
+    pub fn from_n_macrolike(item: fn(&mut LispContext, &[LispValue]) -> LispValue) -> Self {
+        LispValue::NativeFunction(NativeFunc::FunctionMacroLike(item))
+    
+    }
 
     pub fn cons(a: LispValue, b: LispValue) -> LispValue {
         LispValue::Cons(Rc::new((a, b)))
@@ -152,6 +158,15 @@ impl LispValue {
             LispValue::Integer(x) => Some(*x),
             LispValue::BigInt(x) => x.to_i64(),
             LispValue::BigRational(x) => x.to_i64(),
+            _ => None,
+        }
+    }
+    pub fn to_bigint(&self) -> Option<Rc<BigInt>> {
+        match self {
+            LispValue::Rational(x) =>  None,
+            LispValue::Integer(x) => None,
+            LispValue::BigInt(x) => Some(x.clone()),
+            LispValue::BigRational(x) => None,
             _ => None,
         }
     }
@@ -650,6 +665,7 @@ impl LispContext {
     }
     
     pub fn panic_if_error(&self) {
+        println!("panic ? {}", self.current_error);
         if self.current_error.is_nil() {
             return;
         }
@@ -952,7 +968,7 @@ fn lisp_eval_file(ctx: &mut LispContext, code: &str) {
             lisp_load_str(ctx, r.as_str());
         }
         Err(_) => {
-            //lisp_raise_error(ctx, LispValue::String("eerr".to_string()));
+            lisp_raise(ctx, &[LispValue::String("eerr".to_string())]);
         }
     }
 }

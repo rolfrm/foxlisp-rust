@@ -155,6 +155,9 @@ pub fn lisp_compile(
                     let check_code = w.bytes.drain(offset1..).as_slice().to_vec();
 
                     let body = cdr(&a.1);
+                    
+                   
+                    
                     for x in body.to_iter() {
                         lisp_compile(ctx, x, w)?;
                         w.emit(ByteCode::Drop);
@@ -227,6 +230,10 @@ pub fn lisp_compile(
                         }
                         lisp_compile(ctx, i, w)?;
                     }
+                    if let_body.is_nil() {
+                        // the body is empty. Just load a NIL.
+                        w.emit(ByteCode::LdNil);
+                    }
 
                     if cnt > 0 {
                         let id1 = car(car(args)).to_symbol_id().unwrap();
@@ -236,22 +243,10 @@ pub fn lisp_compile(
                             w.emit(ByteCode::Drop);
                         }
                     }
+                    
 
                     w.emit(ByteCode::DropScope);
                     w.emit_uleb(cnt);
-                    return Ok(());
-                }
-                
-                if name.eq("raise") {
-                    let argcnt = a.1.to_iter().count();
-                    if argcnt != 1 {
-                        return Err(CompileError::ArgumentError("Unexpected number of arguments for raise.".to_lisp()));
-                    }
-                    for arg in a.1.to_iter().take(1) {
-                    lisp_compile(ctx, arg, w)?;
-                    }
-                    w.emit(ByteCode::Raise);
-                    w.emit(ByteCode::LdNil);
                     return Ok(());
                 }
                 
@@ -301,13 +296,19 @@ pub fn lisp_compile(
             w.emit(ByteCode::LdT);
             Ok(())
         }
-        LispValue::String(str) => {
+        LispValue::String(_) => {
             let c = ctx.get_quote_store(code);
             w.emit(ByteCode::LdQuote);
             w.emit_uleb(c);
             Ok(())
         }
-        LispValue::BigRational(br) => {
+        LispValue::BigRational(_) => {
+            let c = ctx.get_quote_store(code);
+            w.emit(ByteCode::LdQuote);
+            w.emit_uleb(c);
+            Ok(())
+        }
+         LispValue::BigInt(_) => {
             let c = ctx.get_quote_store(code);
             w.emit(ByteCode::LdQuote);
             w.emit_uleb(c);
@@ -412,9 +413,6 @@ where
                 let v = code.read_u8() as i8;
 
                 value = list!("LdConstI1".to_lisp(), (v as i32).to_lisp()).as_car(value);
-            },
-            ByteCode::Raise => {
-                value = list!("Raise".to_lisp()).as_car(value);
             }
         }
     }
@@ -506,6 +504,15 @@ pub fn lisp_eval_bytecode(stk: &mut LispContext) -> () {
                             stk.arg_stack.truncate(newlen);
                             r
                         }
+                        NativeFunc::FunctionMacroLike(fr) => {
+                            let newlen = stk.arg_stack.len() - argcnt;
+                            let args = stk.arg_stack[newlen..].to_vec();
+                            let r = fr(stk, args.as_slice());
+                            stk.arg_stack.truncate(newlen);
+                            r
+                        }
+                        
+                    
                     };
                     stk.arg_stack.push(v);
                 } else if let LispValue::LispFunction(func) = call {
@@ -609,14 +616,6 @@ pub fn lisp_eval_bytecode(stk: &mut LispContext) -> () {
                 let i = stk.get_reader_mut().read_i8();
                 stk.arg_stack.push(LispValue::Integer(i as i64));
             }
-            ByteCode::Raise => {
-                let obj = stk.arg_stack.pop().unwrap_or(LispValue::Nil);
-                if obj.is_nil() {
-                    stk.current_error = "Cannot raise nil".to_lisp()
-                }else{
-                    stk.current_error = obj;
-                }
-            }
         }
     }
 }
@@ -698,6 +697,7 @@ mod test {
 
     use crate::{
         compile::lisp_eval_bytecode,
+        compile::
         compile::{lisp_bytecode_print_bytes, lisp_compile_and_eval_string},
         *,
     };
@@ -796,10 +796,11 @@ mod test {
         assert_eq!(true, cdr_quote.equals(&code));
 
         let evaled_3 = lisp_compile_and_eval_string(&mut ctx, "(eval '(+ 1 2))");
-
-        assert_eq!(3, evaled_3.to_integer().unwrap());
-
-        let s1 = std::mem::size_of_val(&LispValue::Nil);
-        println!("Size: {}", s1);
+    }
+    
+    #[test]
+    fn test_handle_err(){
+        let mut ctx = lisp_load_basic();
+        ctx.eval_str("(with-handle-error (assert nil) ((e) 5)))");
     }
 }

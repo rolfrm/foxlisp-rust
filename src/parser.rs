@@ -372,5 +372,18 @@ mod test {
         assert_eq!("quote", qname);
     }
     
+    #[test]
+    fn test_parse_num(){
+        let mut ctx = lisp_load_basic();
+        ctx.panic_on_error = true;
+        let r = ctx.parse("1111222233334444555566667777888899990000111122223333444455556666777788889999").unwrap();
+        //let r = ctx.eval_str("1111222233334444555566667777888899990000111122223333444455556666777788889999");
+        println!("{}", r);
+        let bi = r.to_bigint().unwrap();
+        //ctx.eval_str("(assert (eq 'I64 (type-of 123)))");
+        //ctx.eval_str("(assert (eq 'BigInteger (type-of 1111222233334444555566667777888899990000111122223333444455556666777788889999)))");
+        
+    }
+    
     
 }

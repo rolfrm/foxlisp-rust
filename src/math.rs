@@ -106,10 +106,7 @@ fn apply_number_func(func: &NumericFunc, a: &LispValue, b: &LispValue) -> LispVa
     }
     if let LispValue::BigInt(x) = &a {
         if let LispValue::Integer(y) = b {
-            return LispValue::BigRational(Rc::new((func.f_bigrational)(
-                &BigRational::from(x.as_ref().clone()),
-                &BigRational::from_i64(*y).unwrap(),
-            )));
+            return LispValue::BigInt(Rc::new((func.f_bigint)(x.as_ref(), &BigInt::from_i64(*y).unwrap())));
         }
         if let LispValue::Rational(y) = b {
             return LispValue::BigRational(Rc::new((func.f_bigrational)(
@@ -165,6 +162,13 @@ fn lisp_apply_numbers(v: &[LispValue], func: &NumericFunc) -> LispValue {
             while let Some(itv) = it.next() {
                 acc = apply_number_func(func, &acc, itv);
             }
+            if let LispValue::BigInt(i) = acc {
+                if let Some(i2) = i.to_i64() {
+                    return LispValue::Integer(i2);
+                }else{
+                    return LispValue::BigInt(i.clone());
+                }
+            }
             return acc;
         } else {
             return firstv.clone();
@@ -218,7 +222,11 @@ fn lisp_sqrt(v: LispValue) -> LispValue {
 
             return LispValue::BigRational(Rc::new(x));
         }
-        LispValue::BigInt(i) => LispValue::BigInt(Rc::new(i.sqrt())),
+        LispValue::BigInt(i) => {
+            let i2 = i.sqrt();
+            println!("qrt({}) => {}", i, i2);
+            
+            LispValue::BigInt(Rc::new(i.sqrt()))},
         _ => LispValue::Nil,
     }
 }
