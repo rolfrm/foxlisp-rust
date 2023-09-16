@@ -35,7 +35,7 @@ pub enum ByteCode {
     Eval = 18,
     LdConstR = 19,
     // Loads a constant i64 value
-    LdConstI1 = 20
+    LdConstI1 = 20,
 }
 
 pub trait ToByteCode {

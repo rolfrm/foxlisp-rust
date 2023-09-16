@@ -21,26 +21,26 @@ fn parse_integer<'a>(code0: &'a [u8], val: &mut i64) -> Option<&'a [u8]> {
 }
 
 fn parse_integer_lisp_value<'a>(code0: &'a [u8], val: &mut LispValue) -> Option<&'a [u8]> {
-    
     if code0.len() == 0 {
         return None;
     }
-    
+
     let mut code = code0;
     if !(code[0] >= b'0' && code[0] <= b'9') {
         return None;
     }
-    let mut outvar : i64 = 0;
+    let mut outvar: i64 = 0;
     while code.len() > 0 && code[0] >= b'0' && code[0] <= b'9' {
         let outvar_checked = outvar.checked_mul(10);
         if let Some(outvar2) = outvar_checked {
             let charcode = code[0] - b'0';
             outvar = outvar2 + (u64::from(charcode) as i64);
             code = &code[1..]
-        }else{
+        } else {
             let mut v2 = LispValue::Nil;
             let rest_code = parse_integer_lisp_value(code, &mut v2);
-            if rest_code.is_some(){ // this means that the i64 oveflowed so we need to shift it based on log10(i64::max)
+            if rest_code.is_some() {
+                // this means that the i64 oveflowed so we need to shift it based on log10(i64::max)
                 //let shift = i64::MAX.ilog10();
                 let offset = code.len() - rest_code.unwrap().len();
                 let shift = offset as u32;
@@ -48,19 +48,18 @@ fn parse_integer_lisp_value<'a>(code0: &'a [u8], val: &mut LispValue) -> Option<
                 let bigi = LispValue::BigInt(Rc::new(bigi * outvar));
                 let vals = [bigi, v2];
                 *val = lisp_add(&vals);
-                
+
                 return rest_code;
-            }else{
+            } else {
                 return None;
             }
         }
-        
     }
-    
+
     if code.len() > 0 && code[0] != b')' && code[0] != b' ' {
         return None;
     }
-    
+
     *val = LispValue::Integer(outvar);
     return Option::Some(code);
 }
@@ -102,7 +101,7 @@ fn skip_whitespace_and_comment(code: &[u8]) -> &[u8] {
 fn parse_rational<'a>(code0: &'a [u8], val: &mut f64) -> Option<&'a [u8]> {
     *val = 0.0;
     let mut code = code0;
-    if code.len() == 0 || !(code[0] >= b'0' && code[0] <= b'9' ) {
+    if code.len() == 0 || !(code[0] >= b'0' && code[0] <= b'9') {
         return None;
     }
     while code.len() > 0 && code[0] >= b'0' && code[0] <= b'9' {
@@ -178,14 +177,13 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
     let mut code2 = code;
     code2 = skip_whitespace_and_comment(code2);
     let prev_neg = code2;
-    let negative = 
-        if code2.len() > 0 && code2[0] == b'-' {
-          code2 = &code2[1..];
-            true
-        }else{
-          false
-      };
-    
+    let negative = if code2.len() > 0 && code2[0] == b'-' {
+        code2 = &code2[1..];
+        true
+    } else {
+        false
+    };
+
     if let Some(code3) = parse_integer_lisp_value(code2, value) {
         if negative {
             let v = [value.clone()];
@@ -193,7 +191,7 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
         }
         return Option::Some(code3);
     }
-    
+
     let mut rational_value: f64 = 0.0;
     if let Some(code3) = parse_rational(code2, &mut rational_value) {
         *value = LispValue::Rational(rational_value);
@@ -210,7 +208,7 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
     if code2.len() == 0 {
         return None;
     }
-    
+
     if code2[0] == b'(' {
         code2 = &code2[1..];
 
@@ -273,14 +271,15 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
         if code2.len() > 0 && code2[0] == b':' {
             keyword = true
         }
-        
+
         if code2[0] == b'\'' {
-        
             code2 = &code2[1..];
             let mut lv = LispValue::Nil;
             if let Some(c) = parse(ctx, code2, &mut lv) {
-                
-                let newcons = lisp_cons(ctx.get_symbol("quote"), lisp_cons(lv.clone(), LispValue::Nil));
+                let newcons = lisp_cons(
+                    ctx.get_symbol("quote"),
+                    lisp_cons(lv.clone(), LispValue::Nil),
+                );
                 *value = newcons;
                 return Some(c);
             }
@@ -302,7 +301,6 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
             return Some(next);
         }
         if let Some(sym) = parse_symbol(ctx, code2, value) {
-            
             if keyword {
                 if let LispValue::Symbol(x) = value {
                     ctx.set_value(*x, value.clone());
@@ -371,19 +369,18 @@ mod test {
         let qname = ctx.get_symbol_name(car(&value)).unwrap();
         assert_eq!("quote", qname);
     }
-    
+
     #[test]
-    fn test_parse_num(){
+    fn test_parse_num() {
         let mut ctx = lisp_load_basic();
         ctx.panic_on_error = true;
-        let r = ctx.parse("1111222233334444555566667777888899990000111122223333444455556666777788889999").unwrap();
+        let r = ctx
+            .parse("1111222233334444555566667777888899990000111122223333444455556666777788889999")
+            .unwrap();
         //let r = ctx.eval_str("1111222233334444555566667777888899990000111122223333444455556666777788889999");
         println!("{}", r);
         let bi = r.to_bigint().unwrap();
         //ctx.eval_str("(assert (eq 'I64 (type-of 123)))");
         //ctx.eval_str("(assert (eq 'BigInteger (type-of 1111222233334444555566667777888899990000111122223333444455556666777788889999)))");
-        
     }
-    
-    
 }

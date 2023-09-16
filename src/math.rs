@@ -1,6 +1,6 @@
-use std::{f64::consts::PI, rc::Rc, ops::Neg};
+use std::{f64::consts::PI, ops::Neg, rc::Rc};
 
-use crate::{cadr, car, is_nil, LispContext, LispValue};
+use crate::{LispContext, LispValue};
 use num::{
     self, integer::Roots, rational::Ratio, traits::AsPrimitive, BigInt, BigRational, FromPrimitive,
     ToPrimitive,
@@ -106,7 +106,10 @@ fn apply_number_func(func: &NumericFunc, a: &LispValue, b: &LispValue) -> LispVa
     }
     if let LispValue::BigInt(x) = &a {
         if let LispValue::Integer(y) = b {
-            return LispValue::BigInt(Rc::new((func.f_bigint)(x.as_ref(), &BigInt::from_i64(*y).unwrap())));
+            return LispValue::BigInt(Rc::new((func.f_bigint)(
+                x.as_ref(),
+                &BigInt::from_i64(*y).unwrap(),
+            )));
         }
         if let LispValue::Rational(y) = b {
             return LispValue::BigRational(Rc::new((func.f_bigrational)(
@@ -165,7 +168,7 @@ fn lisp_apply_numbers(v: &[LispValue], func: &NumericFunc) -> LispValue {
             if let LispValue::BigInt(i) = acc {
                 if let Some(i2) = i.to_i64() {
                     return LispValue::Integer(i2);
-                }else{
+                } else {
                     return LispValue::BigInt(i.clone());
                 }
             }
@@ -188,10 +191,9 @@ pub fn lisp_sub(v: &[LispValue]) -> LispValue {
             LispValue::BigRational(v) => LispValue::BigRational(Rc::new(v.as_ref().neg())),
             LispValue::Integer(v) => LispValue::Integer(v.neg()),
             LispValue::Rational(v) => LispValue::Rational(v.neg()),
-            _ => LispValue::Nil
-            
+            _ => LispValue::Nil,
         }
-    }else{
+    } else {
         lisp_apply_numbers(&v, &SUB_OP)
     }
 }
@@ -225,8 +227,9 @@ fn lisp_sqrt(v: LispValue) -> LispValue {
         LispValue::BigInt(i) => {
             let i2 = i.sqrt();
             println!("qrt({}) => {}", i, i2);
-            
-            LispValue::BigInt(Rc::new(i.sqrt()))},
+
+            LispValue::BigInt(Rc::new(i.sqrt()))
+        }
         _ => LispValue::Nil,
     }
 }
@@ -265,7 +268,7 @@ pub fn lisp_math_load(ctx: &mut LispContext) {
 
     ctx.set_global_str("big-rational", LispValue::from_1(lisp_bigrational));
     ctx.set_global_str("float", LispValue::from_1(lisp_float));
-    
+
     ctx.set_global_str("pi", LispValue::Rational(PI));
 }
 
@@ -281,9 +284,5 @@ mod test {
         ctx.eval_str("(assert (eq (- 0 1) -1))");
         ctx.eval_str("(assert (eq (- 1) -1))");
         ctx.eval_str("(assert (eq (- 1 5) -4))");
-        
-
     }
-    
-    
 }

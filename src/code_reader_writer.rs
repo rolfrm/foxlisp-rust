@@ -1,6 +1,4 @@
-use std::rc::Rc;
-
-use crate::{bytecode::ByteCode, LispContext};
+use crate::bytecode::ByteCode;
 
 pub trait u128able {
     fn as_u128(&self) -> u128;
@@ -200,7 +198,7 @@ impl CodeWriter {
             let bits = value as u8 & 0b01111111;
             let sign = value as u8 & 0b01000000;
             let next = value >> 7;
-            if ((next == 0 && sign == 0) || (sign > 0 && next == -1)) {
+            if (next == 0 && sign == 0) || (sign > 0 && next == -1) {
                 self.emit_u8(bits);
                 break;
             } else {
@@ -286,7 +284,10 @@ where
     return value as i32;
 }
 
-pub fn read_uleb_u128<T>(s: &mut T) -> u128 where T:CodeReader2{
+pub fn read_uleb_u128<T>(s: &mut T) -> u128
+where
+    T: CodeReader2,
+{
     // read LEB128
     let mut value: u128 = 0;
     let mut offset: u32 = 0;
@@ -301,7 +302,10 @@ pub fn read_uleb_u128<T>(s: &mut T) -> u128 where T:CodeReader2{
     return value;
 }
 
-pub fn read_uleb_u32<T>(s: &mut T) -> u32 where T:CodeReader2{
+pub fn read_uleb_u32<T>(s: &mut T) -> u32
+where
+    T: CodeReader2,
+{
     // read LEB128
     let mut value: u32 = 0;
     let mut offset: u32 = 0;
@@ -316,7 +320,10 @@ pub fn read_uleb_u32<T>(s: &mut T) -> u32 where T:CodeReader2{
     return value;
 }
 
-pub fn read_f64<T>(s: &mut T) -> f64 where T:CodeReader2{
+pub fn read_f64<T>(s: &mut T) -> f64
+where
+    T: CodeReader2,
+{
     let mut bytes: [u8; 8] = [0; 8];
     for i in 0..8 {
         bytes[i] = s.read_u8();
@@ -341,7 +348,7 @@ mod test {
     }
     #[test]
     fn test_code_reader() {
-        let x: [u8; 8] = [1, 2, 3, 4,5,6,7,8];
+        let x: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
         let x2 = test_thing(&x);
         test_thing(x2);
     }

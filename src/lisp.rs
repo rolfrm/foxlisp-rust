@@ -17,7 +17,7 @@ pub fn lisp_neq(a: &[LispValue]) -> &LispValue {
     }
     return &LispValue::Nil;
 }
-pub fn lisp_equals(a:  &[LispValue]) -> &LispValue {
+pub fn lisp_equals(a: &[LispValue]) -> &LispValue {
     if a[0].equals(&a[1]) {
         return &LispValue::Integer(1);
     }
@@ -75,8 +75,7 @@ fn lisp_print(v: &[LispValue]) -> LispValue {
 }
 
 fn lisp_conss(v: &[LispValue]) -> LispValue {
-    let mut v0 
-    = LispValue::Nil;
+    let mut v0 = LispValue::Nil;
     for i in v.iter().rev() {
         v0 = LispValue::cons(i.clone(), v0);
     }
@@ -103,7 +102,6 @@ macro_rules! list {
         };
 }
 
-
 pub fn is_nil(a: &LispValue) -> bool {
     match a {
         &LispValue::Nil => true,
@@ -118,14 +116,14 @@ pub fn is_cons(a: &LispValue) -> bool {
     }
 }
 
-pub fn lisp_reverse(v: LispValue) -> LispValue{
+pub fn lisp_reverse(v: LispValue) -> LispValue {
     let mut out = Vec::new();
     let mut v2 = v;
     while v2.is_nil() == false {
         out.push(car(&v2).clone());
         v2 = cdr(&v2).clone();
     }
-    
+
     for x in out {
         v2 = lisp_cons(x.clone(), v2);
     }
@@ -159,7 +157,7 @@ fn lisp_type_of(ctx: &mut LispContext, a: &[LispValue]) -> LispValue {
         LispValue::T => ctx.get_symbol("T"),
         LispValue::String(_) => ctx.get_symbol("String"),
         LispValue::Nil => LispValue::Nil,
-        _ => panic!("Unknown type!")
+        _ => panic!("Unknown type!"),
     }
 }
 
@@ -194,13 +192,12 @@ pub fn lisp_load_lisp(ctx: &mut LispContext) {
     ctx.set_global_str("list", LispValue::from_n(lisp_conss));
     ctx.set_global_str("type-of", LispValue::from_n_macrolike(lisp_type_of));
     ctx.set_global_str("raise", LispValue::from_n_macrolike(lisp_raise));
-    
+
     ctx.eval_str("(defun assert (cond) (if cond 1 (raise '(assert failed))))");
-    
+
     ctx.eval_str("(let ((values '(123.0 123 \"aaa\"))) (loop values (set! values (cdr values)) (println (type-of (car values)))))");
     ctx.eval_str("(let ((values '(BigInteger BigRational))))");
 }
-
 
 #[cfg(test)]
 mod test {
@@ -210,12 +207,16 @@ mod test {
     #[test]
     fn type_of_test() {
         let mut ctx = lisp_load_basic();
-        
-        let tests = [("(type-of 123)", "I64"), ("(type-of 123.0)", "F64"), ("(type-of \"asd\")", "String"), ("(type-of 123)", "I64")];
+
+        let tests = [
+            ("(type-of 123)", "I64"),
+            ("(type-of 123.0)", "F64"),
+            ("(type-of \"asd\")", "String"),
+            ("(type-of 123)", "I64"),
+        ];
         for x in tests {
             let result = ctx.eval_str(x.0);
-        assert_eq!(result, ctx.get_symbol(x.1));
+            assert_eq!(result, ctx.get_symbol(x.1));
         }
-        
     }
 }

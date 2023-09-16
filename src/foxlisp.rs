@@ -32,7 +32,7 @@ pub enum NativeFunc {
     Function1r(fn(&LispValue) -> &LispValue),
     Function2r(fn(&[LispValue]) -> &LispValue),
     FunctionN(fn(&[LispValue]) -> LispValue),
-    FunctionMacroLike(fn(&mut LispContext, &[LispValue]) ->LispValue)
+    FunctionMacroLike(fn(&mut LispContext, &[LispValue]) -> LispValue),
 }
 
 impl fmt::Debug for NativeFunc {
@@ -142,7 +142,6 @@ impl LispValue {
     }
     pub fn from_n_macrolike(item: fn(&mut LispContext, &[LispValue]) -> LispValue) -> Self {
         LispValue::NativeFunction(NativeFunc::FunctionMacroLike(item))
-    
     }
 
     pub fn cons(a: LispValue, b: LispValue) -> LispValue {
@@ -163,10 +162,10 @@ impl LispValue {
     }
     pub fn to_bigint(&self) -> Option<Rc<BigInt>> {
         match self {
-            LispValue::Rational(x) =>  None,
-            LispValue::Integer(x) => None,
+            LispValue::Rational(_x) => None,
+            LispValue::Integer(_x) => None,
             LispValue::BigInt(x) => Some(x.clone()),
-            LispValue::BigRational(x) => None,
+            LispValue::BigRational(_x) => None,
             _ => None,
         }
     }
@@ -399,8 +398,8 @@ impl LispValue {
             _ => false,
         }
     }
-    
-    pub fn as_car(self, cdr : LispValue) -> LispValue {
+
+    pub fn as_car(self, cdr: LispValue) -> LispValue {
         lisp_cons(self, cdr)
     }
 }
@@ -652,7 +651,7 @@ pub struct LispContext {
     current_error: LispValue,
 
     quote_store: Vec<LispValue>,
-    panic_on_error : bool
+    panic_on_error: bool,
 }
 
 impl LispContext {
@@ -663,7 +662,7 @@ impl LispContext {
             .local_vars
             .push(scope);
     }
-    
+
     pub fn panic_if_error(&self) {
         println!("panic ? {}", self.current_error);
         if self.current_error.is_nil() {
@@ -693,7 +692,7 @@ impl LispContext {
     fn eval_str(&mut self, code: &str) -> LispValue {
         lisp_compile_and_eval_string(self, code)
     }
-    
+
     fn parse(&mut self, code: &str) -> Option<LispValue> {
         let mut code_bytes = code.as_bytes();
         let c1 = parse_bytes(self, &mut code_bytes);
@@ -811,15 +810,14 @@ impl LispContext {
             current_scope: Vec::new(),
             current_error: LispValue::Nil,
             quote_store: Vec::new(),
-            panic_on_error: false
+            panic_on_error: false,
         };
     }
-    
-    pub fn raise_error(&mut self, error: LispValue){
-        
+
+    pub fn raise_error(&mut self, error: LispValue) {
         if self.panic_on_error {
             panic!("{}", error);
-        }else{
+        } else {
             self.current_error = error;
         }
     }
@@ -1015,11 +1013,10 @@ mod test {
     }
 
     #[test]
-    fn test_error(){
+    fn test_error() {
         let mut ctx = lisp_load_basic();
         ctx.eval_str("(assert nil)");
         assert!(ctx.current_error.is_nil() == false);
-        
     }
     #[test]
     fn eval_test() {
@@ -1105,7 +1102,7 @@ mod test {
 
         ctx.eval_str("(defun print2 (a) (println ;;hello world\n (+ 5 a 1.3)))");
         ctx.eval_str("(assert (println (print2 123)))");
-       ctx.eval_str("(defun pow2 (a) (* a a))");
+        ctx.eval_str("(defun pow2 (a) (* a a))");
         println!("{}", ctx.eval_str("(pow2 10)"));
         assert!(ctx.current_error.is_nil());
     }

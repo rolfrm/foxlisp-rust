@@ -14,11 +14,9 @@ pub fn lisp_compile(
 ) -> Result<(), CompileError> {
     match code {
         LispValue::Cons(a) => {
-            
             if let LispValue::Symbol(s1) = a.0 {
-                
                 let name = &ctx.symbol_name_lookup[s1 as usize].clone();
-                
+
                 if name.eq("eval") {
                     for arg in a.1.to_iter().take(1) {
                         lisp_compile(ctx, arg, w)?;
@@ -155,9 +153,7 @@ pub fn lisp_compile(
                     let check_code = w.bytes.drain(offset1..).as_slice().to_vec();
 
                     let body = cdr(&a.1);
-                    
-                   
-                    
+
                     for x in body.to_iter() {
                         lisp_compile(ctx, x, w)?;
                         w.emit(ByteCode::Drop);
@@ -243,15 +239,14 @@ pub fn lisp_compile(
                             w.emit(ByteCode::Drop);
                         }
                     }
-                    
 
                     w.emit(ByteCode::DropScope);
                     w.emit_uleb(cnt);
                     return Ok(());
                 }
-                
+
                 let namecode = ctx.global_names.get(s1 as usize);
-                
+
                 if namecode.is_none() {
                     return Err(CompileError::UnknownSymbol(a.0.clone()));
                 }
@@ -308,7 +303,7 @@ pub fn lisp_compile(
             w.emit_uleb(c);
             Ok(())
         }
-         LispValue::BigInt(_) => {
+        LispValue::BigInt(_) => {
             let c = ctx.get_quote_store(code);
             w.emit(ByteCode::LdQuote);
             w.emit_uleb(c);
@@ -326,11 +321,11 @@ pub fn lisp_compile(
     }
 }
 pub fn lisp_bytecode_print_bytes(code: Vec<u8>, stk: &LispContext) {
-    let mut code = CodeReader::new(code);
+    let code = CodeReader::new(code);
     lisp_bytecode_print(&code.bytes[0..], stk);
 }
 
-pub fn bytecode_to_lisp<T>(code: &mut T, stk: &LispContext) -> LispValue
+pub fn bytecode_to_lisp<T>(code: &mut T, _stk: &LispContext) -> LispValue
 where
     T: CodeReader2,
 {
@@ -368,7 +363,7 @@ where
                 value = lisp_cons(lisp_cons("DefVar".to_lisp(), symi.to_symbol()), value);
             }
             ByteCode::Call => {
-                let argcnt = read_uleb_u128(code) as usize;
+                let _argcnt = read_uleb_u128(code) as usize;
                 let symi: i32 = read_uleb_u32(code) as i32;
                 value = lisp_cons(list!("Call", symi.to_symbol()), value);
             }
@@ -511,13 +506,11 @@ pub fn lisp_eval_bytecode(stk: &mut LispContext) -> () {
                             stk.arg_stack.truncate(newlen);
                             r
                         }
-                        
-                    
                     };
                     stk.arg_stack.push(v);
                 } else if let LispValue::LispFunction(func) = call {
                     let newlen = stk.arg_stack.len() - argcnt;
-                    let mut args = &mut stk.arg_stack[newlen..];
+                    let _args = &mut stk.arg_stack[newlen..];
 
                     if func.compiled_code.len() == 0 {
                         //let mut writer = CodeWriter::new();
@@ -544,7 +537,7 @@ pub fn lisp_eval_bytecode(stk: &mut LispContext) -> () {
                 stk.arg_stack.push(v);
             }
             ByteCode::IsNil => {
-                if (is_nil(&stk.arg_stack.pop().unwrap())) {
+                if is_nil(&stk.arg_stack.pop().unwrap()) {
                     stk.arg_stack.push(LispValue::T);
                 } else {
                     stk.arg_stack.push(LispValue::Nil);
@@ -552,7 +545,7 @@ pub fn lisp_eval_bytecode(stk: &mut LispContext) -> () {
             }
             ByteCode::CondJmp => {
                 let len = stk.read_sleb();
-                if (is_nil(&stk.arg_stack.pop().unwrap())) {
+                if is_nil(&stk.arg_stack.pop().unwrap()) {
                     // do nothing.
                 } else {
                     stk.jmp(len);
@@ -593,7 +586,7 @@ pub fn lisp_eval_bytecode(stk: &mut LispContext) -> () {
                 let code = stk.arg_stack.pop().unwrap();
                 let mut wd = CodeWriter::new();
                 lisp_compile(stk, &code, &mut wd).unwrap();
-                let mut eval_scope = LispScope2 {
+                let eval_scope = LispScope2 {
                     func: Rc::new(LispFunc {
                         code: code.clone(),
                         compiled_code: wd.bytes.clone(),
@@ -696,9 +689,8 @@ pub fn lisp_compile_and_eval(ctx: &mut LispContext, code: &LispValue) -> LispVal
 mod test {
 
     use crate::{
+        compile::compile::{lisp_bytecode_print_bytes, lisp_compile_and_eval_string},
         compile::lisp_eval_bytecode,
-        compile::
-        compile::{lisp_bytecode_print_bytes, lisp_compile_and_eval_string},
         *,
     };
 
@@ -797,9 +789,9 @@ mod test {
 
         let evaled_3 = lisp_compile_and_eval_string(&mut ctx, "(eval '(+ 1 2))");
     }
-    
+
     #[test]
-    fn test_handle_err(){
+    fn test_handle_err() {
         let mut ctx = lisp_load_basic();
         ctx.eval_str("(with-handle-error (assert nil) ((e) 5)))");
     }
