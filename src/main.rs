@@ -6,7 +6,7 @@ use std::rc::Rc;
 use std::{env, u128};
 mod lisp;
 use lisp::*;
-use num::{BigInt, FromPrimitive};
+use num::BigInt;
 mod math;
 use math::*;
 use std::cell::RefCell;
@@ -503,7 +503,7 @@ impl TryInto<i64> for LispValue {
 impl fmt::Display for LispValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
-            LispValue::Cons(a) => {
+            LispValue::Cons(_) => {
                 let mut it = &*self;
                 write!(f, "(").unwrap();
                 let mut first = true;
