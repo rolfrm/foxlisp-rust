@@ -1,59 +1,61 @@
 use crate::bytecode::ByteCode;
 
-pub trait u128able {
+pub trait U128Able {
     fn as_u128(&self) -> u128;
 }
 
-pub trait i128able {
+pub trait I128Able {
     fn as_i128(&self) -> i128;
 }
 
-impl i128able for i128 {
+impl I128Able for i128 {
     fn as_i128(&self) -> i128 {
         *self
     }
 }
 
-impl i128able for i64 {
+impl I128Able for i64 {
     fn as_i128(&self) -> i128 {
         *self as i128
     }
 }
-impl i128able for i32 {
+
+impl I128Able for i32 {
     fn as_i128(&self) -> i128 {
         *self as i128
     }
 }
-impl u128able for i32 {
+
+impl U128Able for i32 {
     fn as_u128(&self) -> u128 {
         *self as u128
     }
 }
 
-impl u128able for usize {
+impl U128Able for usize {
     fn as_u128(&self) -> u128 {
      *self as u128
     }
 }
 
-impl u128able for u32 {
+impl U128Able for u32 {
     fn as_u128(&self) -> u128 {
         return *self as u128;
     }
 }
 
-impl u128able for &i32 {
+impl U128Able for &i32 {
     fn as_u128(&self) -> u128 {
         return **self as u128;
     }
 }
 
-impl u128able for i128 {
+impl U128Able for i128 {
     fn as_u128(&self) -> u128 {
         return *self as u128;
     }
 }
-impl u128able for u128 {
+impl U128Able for u128 {
     fn as_u128(&self) -> u128 {
         return *self as u128;
     }
@@ -226,7 +228,7 @@ impl CodeWriter {
 
     pub fn emit_sleb<T>(&mut self, in_value: T)
     where
-        T: i128able,
+        T: I128Able,
     {
         let mut value = in_value.as_i128();
         loop {
@@ -245,7 +247,7 @@ impl CodeWriter {
 
     pub fn emit_uleb<T>(&mut self, in_value: T)
     where
-        T: u128able,
+        T: U128Able,
     {
         let mut value = in_value.as_u128();
         loop {
