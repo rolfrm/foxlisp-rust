@@ -26,9 +26,22 @@ impl i128able for i32 {
 }
 impl u128able for i32 {
     fn as_u128(&self) -> u128 {
+        *self as u128
+    }
+}
+
+impl u128able for usize {
+    fn as_u128(&self) -> u128 {
+     *self as u128
+    }
+}
+
+impl u128able for u32 {
+    fn as_u128(&self) -> u128 {
         return *self as u128;
     }
 }
+
 impl u128able for &i32 {
     fn as_u128(&self) -> u128 {
         return **self as u128;
@@ -48,29 +61,41 @@ impl u128able for u128 {
 
 pub struct CodeWriter {
     pub bytes: Vec<u8>,
+    pub labels: Vec<u32>
 }
 
 #[derive(Debug)]
 pub struct CodeReader {
     pub bytes: Vec<u8>,
     pub offset: usize,
+    pub labels: Vec<u32>
 }
 
 impl CodeReader {
     pub fn end(&self) -> bool {
         self.bytes.len() <= self.offset
     }
-    pub fn new(bytes: Vec<u8>) -> CodeReader {
+    pub fn new(bytes: Vec<u8>, labels: Vec<u32>) -> CodeReader {
         CodeReader {
             bytes: bytes,
             offset: 0,
+            labels: labels
         }
     }
-    pub fn jmp(&mut self, amount: i64) {
-        if (self.offset as i64) + amount < 0 {
-            panic!("Invalid jump {} > {}", self.offset, amount);
+    
+    pub fn from_code_writer(writer: CodeWriter) -> CodeReader {
+        CodeReader{
+            bytes: writer.bytes.clone(),
+            offset : 0,
+            labels: writer.labels.clone()
         }
-        self.offset = (self.offset as i64 + amount) as usize;
+    }
+    
+    pub fn jmp(&mut self, label: u32) {
+        if label as usize > self.labels.len() {
+            panic!("Invalid label {} > {}", self.offset, label);
+        }
+        self.offset = self.labels[label as usize] as usize;
     }
     pub fn read_u8(&mut self) -> u8 {
         let i = self.offset;
@@ -160,11 +185,11 @@ impl CodeReader {
 
 impl CodeWriter {
     pub fn new() -> CodeWriter {
-        CodeWriter { bytes: Vec::new() }
+        CodeWriter { bytes: Vec::new(), labels: Vec::new()}
     }
 
     pub fn to_reader(self) -> CodeReader {
-        CodeReader::new(self.bytes)
+        CodeReader::new(self.bytes, self.labels)
     }
 
     pub fn offset(&self) -> usize {
@@ -173,6 +198,16 @@ impl CodeWriter {
 
     pub fn emit(&mut self, byte_code: ByteCode) {
         self.bytes.push(byte_code as u8)
+    }
+    
+    pub fn new_label(&mut self) -> usize {
+        let idx = self.labels.len();
+        self.labels.push(0);
+        return idx;
+    }
+    
+    pub fn assign_label(&mut self, label : usize) {
+        self.labels[label] = self.offset() as u32;
     }
 
     pub fn emit_u8(&mut self, v: u8) {

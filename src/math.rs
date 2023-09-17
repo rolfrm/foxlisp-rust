@@ -1,6 +1,6 @@
 use std::{f64::consts::PI, ops::Neg, rc::Rc};
 
-use crate::{LispContext, LispValue};
+use crate::{Lisp, LispValue};
 use num::{
     self, integer::Roots, rational::Ratio, traits::AsPrimitive, BigInt, BigRational, FromPrimitive,
     ToPrimitive,
@@ -258,7 +258,7 @@ fn lisp_float(v: LispValue) -> LispValue {
     }
 }
 
-pub fn lisp_math_load(ctx: &mut LispContext) {
+pub fn lisp_math_load(ctx: &mut Lisp) {
     ctx.set_global_str("+", LispValue::from_n(lisp_add));
     ctx.set_global_str("-", LispValue::from_n(lisp_sub));
     ctx.set_global_str("*", LispValue::from_n(lisp_mul));
@@ -279,7 +279,7 @@ mod test {
 
     #[test]
     fn test_basic_math() {
-        let mut ctx = lisp_load_basic();
+        let mut ctx = Lisp::new();
         ctx.panic_on_error = true;
         ctx.eval_str("(assert (eq (- 0 1) -1))");
         ctx.eval_str("(assert (eq (- 1) -1))");

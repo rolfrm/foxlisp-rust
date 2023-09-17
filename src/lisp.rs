@@ -148,7 +148,7 @@ fn lisp_lt(a: &[LispValue]) -> &LispValue {
     return &LispValue::Nil;
 }
 
-fn lisp_type_of(ctx: &mut LispContext, a: &[LispValue]) -> LispValue {
+fn lisp_type_of(ctx: &mut Lisp, a: &[LispValue]) -> LispValue {
     match a[0] {
         LispValue::Integer(_) => ctx.get_symbol("I64"),
         LispValue::Rational(_) => ctx.get_symbol("F64"),
@@ -161,7 +161,7 @@ fn lisp_type_of(ctx: &mut LispContext, a: &[LispValue]) -> LispValue {
     }
 }
 
-pub fn lisp_raise(ctx: &mut LispContext, error: &[LispValue]) -> LispValue {
+pub fn lisp_raise(ctx: &mut Lisp, error: &[LispValue]) -> LispValue {
     if ctx.panic_on_error {
         panic!("panic: {}", error[0]);
     }
@@ -169,7 +169,7 @@ pub fn lisp_raise(ctx: &mut LispContext, error: &[LispValue]) -> LispValue {
     return LispValue::Nil;
 }
 
-pub fn lisp_load_lisp(ctx: &mut LispContext) {
+pub fn lisp_load_lisp(ctx: &mut Lisp) {
     ctx.set_global_str(
         "println",
         LispValue::NativeFunction(NativeFunc::FunctionN(lisp_print)),
@@ -206,7 +206,7 @@ mod test {
 
     #[test]
     fn type_of_test() {
-        let mut ctx = lisp_load_basic();
+        let mut ctx = Lisp::new();
 
         let tests = [
             ("(type-of 123)", "I64"),

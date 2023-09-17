@@ -150,7 +150,7 @@ fn parse_token<'a>(code0: &'a [u8], token: &str) -> Option<&'a [u8]> {
 }
 
 fn parse_symbol<'a>(
-    ctx: &mut LispContext,
+    ctx: &mut Lisp,
     code0: &'a [u8],
     value: &mut LispValue,
 ) -> Option<&'a [u8]> {
@@ -173,7 +173,7 @@ fn parse_symbol<'a>(
     return Option::Some(code);
 }
 
-pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -> Option<&'a [u8]> {
+pub fn parse<'a>(ctx: &mut Lisp, code: &'a [u8], value: &mut LispValue) -> Option<&'a [u8]> {
     let mut code2 = code;
     code2 = skip_whitespace_and_comment(code2);
     let prev_neg = code2;
@@ -313,12 +313,12 @@ pub fn parse<'a>(ctx: &mut LispContext, code: &'a [u8], value: &mut LispValue) -
     None
 }
 
-pub fn parse_from_string(ctx: &mut LispContext, code: &str) -> LispValue {
+pub fn parse_from_string(ctx: &mut Lisp, code: &str) -> LispValue {
     let mut c = code.as_bytes();
     return parse_bytes(ctx, &mut c).unwrap();
 }
 
-pub fn parse_bytes(ctx: &mut LispContext, code: &mut &[u8]) -> Option<LispValue> {
+pub fn parse_bytes(ctx: &mut Lisp, code: &mut &[u8]) -> Option<LispValue> {
     let mut v = LispValue::Nil;
 
     if let Some(c3) = parse(ctx, code, &mut v) {
@@ -336,7 +336,7 @@ mod test {
 
     #[test]
     fn test_code_builder() {
-        let ctx = lisp_load_basic();
+        let ctx = Lisp::new();
 
         let mut wd = CodeWriter::new();
         let bignumber: u128 = 111222333444555666777888999000111222333;
@@ -359,7 +359,7 @@ mod test {
     }
     #[test]
     fn test_parse_symbol() {
-        let mut ctx = lisp_load_basic();
+        let mut ctx = Lisp::new();
         let value = parse_from_string(&mut ctx, "'aaa");
         update_symbol_names(&ctx);
         println!("{:?}", ctx.symbol_name_lookup);
@@ -372,7 +372,7 @@ mod test {
 
     #[test]
     fn test_parse_num() {
-        let mut ctx = lisp_load_basic();
+        let mut ctx = Lisp::new();
         ctx.panic_on_error = true;
         let r = ctx
             .parse("1111222233334444555566667777888899990000111122223333444455556666777788889999")
