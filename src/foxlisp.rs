@@ -225,11 +225,7 @@ impl Lisp {
     }
 
     pub fn raise_error(&mut self, error: LispValue) {
-        if self.panic_on_error {
-            panic!("{}", error);
-        } else {
-            self.current_error = error;
-        }
+        lisp_raise(self, &[error]);
     }
     pub fn find_symbol(&self, name: &str) -> LispValue {
         if let Option::Some(id) = self.symbols.get(name) {

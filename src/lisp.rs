@@ -162,7 +162,7 @@ fn lisp_type_of(ctx: &mut Lisp, a: &[LispValue]) -> LispValue {
 }
 
 pub fn lisp_raise(ctx: &mut Lisp, error: &[LispValue]) -> LispValue {
-    if ctx.panic_on_error {
+    if ctx.panic_on_error && ctx.error_handler_labels.len() == 0{
         panic!("panic: {}", error[0]);
     }
     ctx.current_error = error[0].clone();

@@ -814,8 +814,10 @@ mod test {
 
     #[test]
     fn test_handle_err() {
-        let mut ctx = Lisp::new();
-        let r = ctx.eval_str("(with-handle-error (assert nil) 5)");
+        let mut lisp = Lisp::new();
+        lisp.panic_on_error = true;
+        lisp.eval_str("(defun fails-with-args (a) (let ((b 3)) (raise 'est)))");
+        let r = lisp.eval_str("(with-handle-error (let ((x 2)) (assert nil)) 5)");
         
         assert_eq!(5, r.to_integer().unwrap());
     }
