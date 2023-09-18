@@ -159,7 +159,7 @@ impl Lisp {
         self.quote_store.get(id as usize).unwrap()
     }
 
-    fn load(&mut self, code: &str) -> LispValue {
+    pub fn load(&mut self, code: &str) -> LispValue {
         lisp_load_str(self, code)
     }
 
@@ -167,8 +167,12 @@ impl Lisp {
         lisp_compile_and_eval(self, code)
     }
 
-    fn eval_str(&mut self, code: &str) -> LispValue {
+    pub fn eval_str(&mut self, code: &str) -> LispValue {
         lisp_compile_and_eval_string(self, code)
+    }
+    
+    pub fn eval_file(&mut self, file : &str) {
+        lisp_eval_file(self, file);
     }
 
     fn parse(&mut self, code: &str) -> Option<LispValue> {
